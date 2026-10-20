@@ -1,0 +1,309 @@
+
+===============================================================================
+ GRAPHIFY JEU v2.0 — "ALPHA : DOUBLE FACE" — SPEC MINI-JEU CONSOLIDE
+ Consolidation : scenario + personas + use cases + interface + stories
+ Calibrage : MINI-JEU, timebox 2 h TOUT COMPRIS (art inclus)
+ Sources : iterations jeu v1.0/v1.1 + graphify v3.0 (KEY::RENPY, R-18)
+===============================================================================
+
+CONVENTIONS : [V] verifie sujet | [D] decision equipe | EC = edge case
+S-n = ecran | UC-n = use case | G-n = story | EX-n = etape plan principal
+
+-------------------------------------------------------------------------------
+ PART 1 — IDENTITE DU MINI-JEU (RECALIBRAGE)
+-------------------------------------------------------------------------------
+CE QUE C'EST   : une telecommande racontee. Chaque bouton = UNE action
+                 reelle (POST /transactions, exec script arsenal, requete
+                 RAG). Le jeu NARRE, le dashboard React DEMONTRE.
+CE QUE CE N'EST PAS : un jeu video. Pas de score, pas de sauvegardes
+                 complexes, pas d'inventaire, pas d'expressions animees.
+TIMEBOX        : 2 h maximum, apres EX-08 (demo minimale) passee.
+                 2 h = [45 min dev] + [30 min art N1] + [30 min tests
+                 EC] + [15 min marge]. Si ca depasse -> N0 typographique.
+AMUSANT SANS ETRE CHIANT :
+- texte narratif : 5-10 lignes MAX par ecran (v1.1 disait 15-25 : trop)
+- un ecran = une action, deux clics max
+- rythme : une punchline visuelle par ecran (HUD qui rougit, porte qui
+  se referme, "ZERO-TOUCH" en plein ecran)
+- silhouettes + noir/blanc/rouge : l'esthetique fait le boulot, pas
+  la quantite d'assets
+
+REGLES INVARIABLES (heritees, non negociables) :
+R-01 zero-touch : personne ne repare via le jeu, jamais [V]
+R-14 aucun appel GLM dans le binaire (arsenal gele) [V]
+R-18 le jeu habille une demo qui marche, jamais l'inverse
+P3 le feedback est TOUJOURS la verite reelle du systeme [V]
+Desktop only (web build sans reseau) [V]
+
+-------------------------------------------------------------------------------
+ PART 2 — PERSONAS / ROLES JOUEURS (QUI, QUAND, POURQUOI)
+-------------------------------------------------------------------------------
+P1 — RED CREW (vous, lane cyber) — PC ATTAQUANT
+    quand : mardi-jeudi interne + vendredi demo (etape 2 de la boucle B)
+    pourquoi : arsenal en 1 clic, repetitions fiables, trafic anormal
+    -> dataset ML. Ne joue JAMAIS le reparateur.
+P2 — OPERATRICE SOC ("Le Badge") — PC HOTE
+    quand : interne + vendredi (etape 4)
+    pourquoi : poster le zero-touch — regarde, comprend, ne touche
+    pas ; interroge le RAG ; c'est elle qui montre la sagesse.
+P3 — CLIENT ("L'Ombre") — le role OFFERT AU JURY, PC HOTE
+    quand : vendredi, etapes 1 et 5 de la boucle B
+    pourquoi : impliquer le jury (scrutin croise 43 pts) ; fournir
+    la preuve contractuelle (transaction avant/apres) [V]
+P4 — SPECTATEUR (le reste du jury) — ne joue pas
+    regarde le double ecran : jeu a gauche, dashboard React a droite.
+    Contrainte UX : chaque action du jeu doit etre comprehensible
+    par quelqu'un qui ne joue pas (grandes etiquettes metier).
+P5 — EQUIPE (repetition) — lundi-jeudi
+    utilise les UC comme harnais de test de la chaine complete.
+
+REGLE D'OR : le jury ne joue QUE le role CLIENT (payer). Point final.
+
+-------------------------------------------------------------------------------
+ PART 3 — USE CASES PAR PERSONA
+-------------------------------------------------------------------------------
+Format : acteur / preconditions / declencheur / flux nominal /
+alternatifs / postcondition / EC lies.
+
+UC-01 PAYER UNE TRANSACTION — P3 Client
+  precond : plateforme UP (/health OK)
+  declench : bouton "PAYER" sur S2
+  nominal : 1. le client clique PAYER
+            2. le jeu POST /transactions (vrai appel)
+            3. reponse API affichee telle quelle
+            4. compteur HUD transactions OK +1
+  alternatif A (EC1) : API down -> ecran echec reel + ligne narrative
+    "La banque est a terre..." (aucun faux succes)
+  postcond : transaction enregistree dans la vraie base
+  valeur demo : etape 1 (avant attaque) et etape 5 (preuve apres
+  reprise) de la boucle B
+
+UC-02 LANCER UNE ATTAQUE — P1 Red Crew
+  precond : arsenal gele disponible ; jeu sur PC Attaquant
+  declench : selection d'un niveau (menu S3)
+  nominal : 1. menu niveaux 1/2/3 affiche (etiquettes METIER :
+    "Inonder les caisses", "Epuiser la memoire", "Couper les tuyaux")
+    2. exec subprocess du script arsenal/niveau-N (gele)
+    3. sortie reelle affichee dans le terminal du jeu
+    4. HUD passe au rouge (vraie metrique via pont JSON)
+    5. bouton STOP toujours accessible
+  alternatif A (EC2) : le script echoue -> sortie d'erreur affichee
+    telle quelle, PAS de "succes"
+  alternatif B (EC4) : re-run du meme niveau -> autorise, compteur
+    de runs affiche (utile dataset)
+  postcond : trafic anormal reel sur la plateforme
+  valeur : repetitions EX-12 + generation dataset ML
+
+UC-03 OBSERVER LA DETECTION — P2 Operatrice
+  precond : attaque en cours (UC-02)
+  nominal : 1. le HUD affiche l'alerte ML (vraie alerte via pont)
+    2. chrono de reprise demarre tout seul (utile pour le clip)
+    3. l'operatrice NE FAIT RIEN — le jeu l'affiche explicitement :
+    "Attendez. Le systeme sait." (le zero-touch est montre, pas
+    raconte seulement)
+  postcond : alerte historisee
+  EC lie : EC3, EC5
+
+UC-04 CONSULTER L'ASSISTANT RAG — P2 Operatrice
+  precond : attaque ou post-attaque
+  nominal : 1. UNE question pre-ecrite affichee (une seule : "Que
+    se passe-t-il et que fait le systeme ?")
+    2. requete REELLE au endpoint LangChain/Ollama
+    3. vraie reponse affichee, citation de la procedure source
+  alternatif (EC3) : reponse lente > 10 s -> spinner honnete,
+    jamais de reponse pre-ecrite en dur
+  postcond : aucune action systeme (le RAG informe, ne repare pas
+  — distinction explicite du sujet [V])
+
+UC-05 TENTER L'INTERVENTION MANUELLE — P2 Operatrice (ECHOUIE)
+  precond : alerte active
+  nominal : 1. deux boutons : "J'interviens moi-meme" / "Je fais
+    confiance au systeme"
+    2. cliquer "J'interviens" -> REFUS : ecran pedagogique recopie
+    du dossier GOV (sanction 0/5, zero-touch [V])
+    3. la seule voie viable continue la demo
+  postcond : aucun effet systeme (bouton refuge, pas d'action)
+  anti-exemple : un bouton "reparer" qui fonctionne = violation R-01
+  valeur : LE moment pedagogique fort de la demo
+
+UC-06 REJOUER L'AUTRE FACE — jury en Q&A (boucle C)
+  precond : demo terminee, jeu ouvert
+  nominal : retour a S1 -> choix de l'autre route -> sequence
+    complete en < 2 min (scenarios acceleres : attaques pre-lancees,
+    RAG non rejoue)
+  postcond : le jury a vu les 2 faces
+  anti-exemple : refaire toute la boucle B manuellement
+
+UC-07 REPETER LA DEMO EN INTERNE — P5 Equipe
+  nominal : boucle A complete (UC-02 -> attente auto-reparation ->
+  verification /health -> UC-01) x N
+  valeur : EX-12 = la demo doit passer 10 fois de suite sans
+  intervention. Le jeu EST l'outil de repetition.
+
+UC-08 GENERER DU DATASET ML — P5/P1 (valeur derivee)
+  nominal : enchaucune UC-02 a intensites variees + trafic client
+  normal (UC-01) -> le collegue IA recolte normal/anormal etiquete
+  par les compteurs du HUD
+  valeur : EX-07 accelere
+
+-------------------------------------------------------------------------------
+ PART 4 — INTERFACE : 6 ECRANS + HUD OVERLAY (v1.1 disait 10 : recuit)
+-------------------------------------------------------------------------------
+HUD (overlay permanent sur TOUS les ecrans) :
+  - barre sante plateforme (GET /health toutes les 2 s, try/except)
+  - compteur transactions OK/KO
+  - statut alerte ML
+  - chrono reprise (part de l'alerte, s'arrete au retour OK)
+  -> 100% Screen Language natif, 0 asset
+
+S1 TITRE — hall clair, 3 portes (capuchon / badge / ombre client).
+    1 image + 3 zones cliquables. Choix = seul gameplay d'entree.
+S2 PAIEMENT CLIENT — montant fictif, 1 bouton PAYER, reponse
+    reelle affichee. (sert aussi a l'etape 5 : meme ecran reutilise)
+S3 TERMINAL HACKER — tout-en-un : sous-menu RECON (scan passif
+    affiche), menu niveaux (3 items), zone sortie reelle, STOP.
+    Fond sombre, typo mono. La riposte (E5 v1.1) est fusionnee
+    ici : quand /health redevient OK, le terminal affiche la
+    "porte refermee" — un seul ecran, 3 etats.
+S4 SOC OPERATRICE — tout-en-un : baniere alerte ML, question RAG
+    unique + reponse, puis les 2 boutons du choix pedagogique.
+    Un ecran, 3 etapes sequentielles.
+S5 EPILOGUE "ZERO-TOUCH" — plein ecran, temps de reprise reel,
+    transactions avant/apres, "aucune intervention humaine".
+    Rappel visuel de S1 (boucle fermee).
+S6 (cache) ERREUR SYSTEME — ecran injoignable (EC5), le jeu ne
+    plante jamais.
+
+PALETTE : fond sombre #0d1117 (hacker) / fond clair (SOC) / rouge
+alerte #dc3545. Le GUI natif Ren'Py relooke par variables de style.
+
+MAPPING CHOIX -> ACTIONS (table de verite, inchangee) :
+  PAYER -> POST /transactions | niveau N -> subprocess arsenal gele
+  question RAG -> GET endpoint LangChain | "J'interviens" -> refus
+  local + ecran GOV | HUD -> GET /health en boucle
+
+-------------------------------------------------------------------------------
+ PART 5 — SCENARIOS : LES 3 BOUCLES
+-------------------------------------------------------------------------------
+BOUCLE A — REPETITION (interne, principale en dev) :
+  UC-02 -> auto-reparation observee sur HUD -> UC-01 -> recommencer.
+  Le jeu doit etre JOUABLE avant d'etre joli (N0 suffit).
+
+BOUCLE B — DEMO VENDREDI (10 min, scenarisee, gel jeudi soir) :
+  1. CLIENT paie (UC-01, S2)        -> OK affiche
+  2. HACKER attaque (UC-02, S3)     -> HUD rouge pour de vrai
+  3. le systeme detecte + repare    -> personne ne touche (UC-03)
+  4. OPERATRICE interroge le RAG (UC-04) + choix pedagogique (UC-05)
+  5. CLIENT repaie (UC-01)          -> OK = preuve contractuelle
+  6. EPILOGUE S5 "ZERO-TOUCH"
+  Spectateur (P4) suit en parallele sur le dashboard React.
+
+BOUCLE C — Q&A (apres demo) : UC-06 en < 2 min.
+
+-------------------------------------------------------------------------------
+ PART 6 — STORIES RECALIBREES (2 H TOUT COMPRIS)
+-------------------------------------------------------------------------------
+PRE-REQUIS : EX-08 passee. Chaque story suit le format BMAD condense
+(ctx / observable / anti-exemple / criteres / EC).
+
+G-1 SCAFFOLD + PONT SANTE — 30 min
+  CTX : projet Ren'Py vierge dans renpy/.
+  OBS : un screen affiche GET /health toutes les 2 s.
+  ANTI : valeur en dur.
+  CRIT : EC5 passe (health absent -> S6, pas de crash). Clavier seul.
+
+G-2 TITRE + HUD + PAIEMENT — 25 min
+  CTX : sur G-1.
+  OBS : S1 route vers S2 ; le bouton PAYER fait un vrai POST ;
+        le compteur HUD s'incremente sur reussite.
+  ANTI : paiement simule.
+  CRIT : EC1 passe (API down -> echec reel affiche).
+
+G-3 TERMINAL HACKER — 30 min
+  CTX : sur G-2 ; arsenal gele ; PC Attaquant.
+  OBS : menu 3 niveaux -> exec reel -> sortie affichee -> HUD rouge
+        -> "porte refermee" au retour OK.
+  ANTI : "attaque reussie" quand le script retourne != 0.
+  CRIT : EC2 + EC4 passes ; rejouable 10x sans plantage.
+
+G-4 SOC OPERATRICE — 25 min
+  CTX : sur G-2 ; endpoint RAG operationnel.
+  OBS : alerte reelle affichee ; UNE question -> vraie reponse
+        Ollama ; "J'interviens" refuse + ecran GOV.
+  ANTI : reponse RAG en dur ; bouton reparer fonctionnel (R-01).
+  CRIT : EC3 passe ; E8 (v1.1) verbalement conforme au sujet [V].
+
+G-5 EPILOGUE + INTEGRATION DEMO — 10 min
+  CTX : sur G-3 + G-4.
+  OBS : S5 affiche temps de reprise reel + bilan avant/apres.
+  ANTI : chiffres inventes.
+  CRIT : boucle B complete jouee 3x de suite sans intervention
+        humaine (mini-EX-12 du jeu).
+
+G-6 (OPTION, SI LES 2 H NE SONT PAS ECOULEES) rejouabilite UC-06
+  OBS : relancer l'autre route en < 2 min via scenarios acceleres.
+  ANTI : refaire toute la sequence.
+
+ART : 30 min MAX, integre ou pendant que le pont tourne :
+  N0 par defaut (typographie coloree, 0 min)
+  N1 si 30 min libres : 3 silhouettes + 3-4 fonds via GLM (prompt
+  style fige, 2 lignes par asset dans le README) ou itch.io
+  royalty-free. N2 (pack expressions) SUPPRIME du scope : un
+  mini-jeu n'a pas besoin d'expressions, des silhouettes racontent
+  mieux et plus vite.
+
+CHECKLIST PO (avant integration demo) :
+[ ] chaque bouton declenche une action reelle (aucun decoratif)
+[ ] EC1 a EC5 testes et passes
+[ ] aucun appel GLM dans le binaire (R-14)
+[ ] zero-touch respecte (UC-05 refuse, jamais ne repare)
+[ ] React reste la vitrine ; le jeu narrre (P1)
+[ ] jouable clavier uniquement
+[ ] CREDITS.md assets (+ prompts IA documentes)
+[ ] textes Ecran-choix (UC-05) recopies du dossier GOV
+
+-------------------------------------------------------------------------------
+ PART 7 — EDGE CASES (REPRISES DE v1.1, INCHANGES)
+-------------------------------------------------------------------------------
+EC1 API payment down -> echec reel affiche + narration
+EC2 script attaque qui echoue -> erreur affichee telle quelle
+EC3 RAG lent > 10 s -> spinner honnete, jamais de faux texte
+EC4 re-run meme niveau -> autorise + compteur (dataset)
+EC5 /health absent -> S6 "injoignable", le jeu ne plante pas
+
+-------------------------------------------------------------------------------
+ PART 8 — GARDE-FOUS + BOUCLE RETRO
+-------------------------------------------------------------------------------
+X pas de score / achievements / sauvegardes complexes / doublage /
+  musique originale (silence = gratuit et pro)
+X pas de 3e route scenarioe, pas d'expressions animees (N2 coupe)
+X pas de web build (desktop only [V])
+X si le jury ferme le jeu, la demo reste comprehensible sur React seul
+X le jeu ne masque JAMAIS un echec re systeme (P3)
+
+VERIFICATIONS AVANT CHAQUE DECISION JEU :
+P3 (p.3 sujet) -> conditions du "resolu" (S5 doit les afficher)
+P6 (GitHub/art) -> sante avant integration (lib ou pack)
+KEY::RENPY (graphify v3.0) -> contraintes techniques
+KEY::COMPOSER -> l'arsenal que S3 lance
+KEY::EVAL -> ce que le jeu sert : remediation 5 pts local / 25 pts
+national + scrutin 43 pts
+R-01 / R-14 / R-18 -> les 3 risques neutralises par ce design
+
+CHANGEMENT v1.1 -> v2.0 (trace) :
+- timebox 3-4 h -> 2 h ; stories recalibrees (6 stories, ~2 h)
+- textes narratifs 15-25 -> 5-10 lignes par ecran
+- 10 ecrans -> 6 + HUD overlay (S3 et S4 tout-en-un)
+- 3 questions RAG -> 1 question
+- niveaux d'attaque affiches : 3 (etiquettes metier)
+- N2 (pack expressions Crimson Blood) SUPPRIME du scope
+- ajout : PART 2-3 personas + 8 use cases formalises
+- ajout : P4 spectateur et P5 equipe comme personas non-joueurs
+
+PROCHAINE ETAPE LOGIQUE : deriver le PRD interactif global (projet +
+jeu) depuis graphify v3.0 PART 06 + ce fichier PART 6.
+
+===============================================================================
+ FIN GRAPHIFY JEU v2.0 — spec mini-jeu consolidee : 8 parties,
+ 5 personas, 8 use cases, 6 ecrans + HUD, 6 stories (~2 h), 5 EC.
+===============================================================================

@@ -54,6 +54,10 @@ define config.has_sound = True
 define config.has_music = True
 define config.has_voice = False
 
+## Son d'apercu joue quand on regle le curseur "Sound Volume" dans les preferences
+## (sinon le curseur semble "ne rien faire"). Son CC0 Kenney, voir CREDITS.md.
+define config.sample_sound = "assets/audio/reprise.ogg"
+
 
 
 

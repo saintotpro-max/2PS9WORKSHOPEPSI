@@ -93,6 +93,19 @@ etape("l'alerte porte une recommandation (action, confiance)",
       len(alertes) == 1 and alertes[0]["recommendation"]["suggested_action"] == "block_source" and alertes[0]["recommendation"]["confidence"] > 0.5)
 etape("vérifications de reprise toutes ok quand le service est sain",
       all(v["status"] == "ok" for v in appel("GET", "/verifications")[1]["verifications"]))
+
+for _niv, _regle in ((5, "authentification en force"), (6, "contrôle d'accès (IDOR)")):
+    appel("POST", "/simulation/reset")
+    appel("POST", "/simulation/attaque", dict(niveau=_niv, detection_s=1, reprise_s=1))
+    time.sleep(2.2)
+    etape("OWASP niveau %d : le service reste sain (bloqué, pas de panne)" % _niv,
+          appel("GET", "/health")[1]["status"] == "ok")
+    bloques = appel("GET", "/flux-bloques")[1]
+    etape("OWASP niveau %d : des flux sont bloqués avec la bonne règle" % _niv,
+          bloques["total"] > 0 and bloques["blocked"][-1]["rule"] == _regle)
+    alertes = appel("GET", "/alerts")[1]["alerts"]
+    etape("OWASP niveau %d : alerte avec recommandation" % _niv,
+          len(alertes) == 1 and alertes[0]["recommendation"]["suggested_action"] in ("block_source", "rate_limit", "restart_service", "scale_up", "none"))
 appel("POST", "/simulation/reset")
 appel("POST", "/simulation/attaque", dict(niveau=1, detection_s=6, reprise_s=6))
 time.sleep(0.5)

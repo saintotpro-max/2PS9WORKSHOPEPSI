@@ -57,40 +57,76 @@ label repetition:
 
 
 label scenario:
+    # Campagne guidee lisible : les 4 types d'attaque, un par un, chacun avec son carton,
+    # sa reprise mesuree et sa preuve. Le joueur regarde (ZERO-TOUCH) et avance a l'espace.
     $ ETAT.tx_ok = 0
     $ ETAT.tx_ko = 0
     $ ETAT.chrono_debut = None
     $ ETAT.chrono_fin = None
-    call screen intertitre("RÉSILIENCE ALPHA", "Regardez une banque encaisser une attaque et se relever toute seule.")
-
-
-    $ lancer_paiement()
-    $ _t = 0
-    while not paiement_fini() and _t < 40:
-        pause 0.3
-        $ _t += 1
-    call screen intertitre("AVANT", "Le client paie. Le service répond. Tout va bien.")
-
-
-    $ reset_vague()
-    $ armer_vague(5)
-    call screen s_vague_auto(6.0)
-    $ lancer_niveau(1)
-    $ _nb = vague_total()
-    call screen intertitre("VOUS ÊTES LE BOTNET", ("Vous l'avez frappée à %d mains. L'attaque cogne." % _nb) if _nb else "L'attaque cogne. Le service vacille.")
-
-
-    call screen intertitre("NE TOUCHEZ À RIEN", "Le système a vu. Il répare seul. Personne n'intervient.")
-    call screen scenario_salle()
-
+    call screen s_carton("#36f1cd", "RÉSILIENCE ALPHA", "Une banque encaisse une attaque et se relève toute seule.", "Vous regardez la salle de contrôle. Vous ne touchez à rien.")
 
     $ lancer_paiement()
-    $ _t = 0
-    while not paiement_fini() and _t < 50:
-        pause 0.3
-        $ _t += 1
-    call screen intertitre("APRÈS", "Le client repaie. Le service est revenu. Zéro intervention humaine.")
+    $ attendre(paiement_fini, 15)
+    call screen s_carton("#2ea043", "AVANT", "Le client paie. Le service répond.", "Tout est vert : c'est l'état normal, avant l'attaque.")
+
+    python:
+        for _niv, _coul, _nom, _quoi, _regardez in CAMPAGNE:
+            renpy.call_screen("s_carton", _coul, "ATTAQUE %d/4 — %s" % (_niv, _nom), _quoi, _regardez)
+            lancer_niveau(_niv)
+            son_attaque(_niv)
+            if _niv == 4:
+                # Injection : pas de panne a mesurer, elle est bloquee et verifiee.
+                # On ne reinitialise pas le chrono (l'epilogue garde la derniere reprise reelle).
+                attendre(lambda: ETAT.flux_total > 0 or reprise_confirmee() or ETAT.terminal_etat == "fini", 14)
+                renpy.call_screen("s_carton", _coul, "NE TOUCHEZ À RIEN",
+                                  "Le système a vu l'injection. Il la bloque, sans tomber.",
+                                  "Aucun humain n'intervient. Regardez le flux se faire bloquer.")
+                renpy.call_screen("scenario_salle", cap=12)
+                jouer(SON_REPRISE)
+                renpy.call_screen("s_carton", "#7ee787", "BLOQUÉE — %s" % _nom,
+                                  "La requête piégée a été bloquée et vérifiée.",
+                                  "Pas de redémarrage : le service n'est jamais tombé.")
+            else:
+                ETAT.chrono_debut = None
+                ETAT.chrono_fin = None
+                attendre(lambda: ETAT.sante in ("degraded", "down") or ETAT.terminal_etat == "fini", 14)
+                renpy.call_screen("s_carton", _coul, "NE TOUCHEZ À RIEN",
+                                  "Le système a vu l'attaque. Il se répare seul.",
+                                  "Aucun humain n'intervient. Regardez la reprise se mesurer.")
+                renpy.call_screen("scenario_salle")
+                jouer(SON_REPRISE)
+                renpy.call_screen("s_carton", "#7ee787", "REPRISE — %s" % _nom,
+                                  "La plateforme est revenue. Reprise mesurée : %s." % libelle_chrono(),
+                                  "Une transaction repasse. Zéro intervention humaine.")
+
+    call screen s_epilogue
+    jump titre
 
 
+label autonomie:
+    # Duel autonome depuis l'ecran du Hacker : l'attaquant enchaine ses tactiques (1 -> 4),
+    # la defense reagit seule, tout se voit sur l'ecran du duel. ZERO-TOUCH.
+    $ ETAT.tx_ok = 0
+    $ ETAT.tx_ko = 0
+    $ duel_reset()
+    python:
+        # Duree de lecture minimale par tour : plus longue en mode reel pour laisser le
+        # modele repondre (~14 s) ; courte sinon. Reglable via cfg["duel_s"].
+        _dwell = 16.0 if duel_ia_active() else float(ETAT.cfg.get("duel_s", 7.0))
+        for _niv, _coul, _nom, _quoi, _regardez in CAMPAGNE:
+            ETAT.duel["tour"] = _niv
+            ETAT.duel["nom"] = _nom
+            ETAT.duel["raison"] = duel_raison(_niv)
+            ETAT.duel["def_raison"] = ""
+            duel_ia_async(_niv)
+            duel_defense_async(_niv)
+            if _niv != 4:
+                ETAT.chrono_debut = None
+                ETAT.chrono_fin = None
+            lancer_niveau(_niv)
+            son_attaque(_niv)
+            renpy.call_screen("s_duel", _coul, _niv, _dwell)
+            jouer(SON_REPRISE)
+        ETAT.duel["fini"] = True
     call screen s_epilogue
     jump titre

@@ -160,6 +160,8 @@ testsuite jeu:
         exit
     before testcase:
         $ test_remise_a_zero()
+        $ ETAT.cfg["carton_s"] = 0.5
+        $ ETAT.cfg["duel_s"] = 0.5
         run Jump("start")
         assert screen "s_titre" timeout 8
 
@@ -245,7 +247,16 @@ testsuite jeu:
     testcase scenario_boucle_b:
         description "Boucle B : la démo guidée enchaîne avant / pendant / après jusqu'à l'épilogue, sans intervention"
         keysym "d"
-        assert screen "s_epilogue" timeout 80
+        assert screen "s_epilogue" timeout 160
+        assert eval test_reprise_mesuree() timeout 3
+
+    testcase duel_autonome:
+        description "AUTONOMIE : depuis l'ecran du Hacker, le duel enchaine les 4 tactiques seul jusqu'a l'epilogue"
+        keysym "1"
+        assert screen "s_terminal" timeout 5
+        click "AUTONOMIE : LE DUEL"
+        assert screen "s_duel" timeout 10
+        assert screen "s_epilogue" timeout 160
         assert eval test_reprise_mesuree() timeout 3
 
     testcase repetition_ex12:
@@ -388,12 +399,14 @@ testsuite scenario_visuel:
         exit
     before testcase:
         $ test_remise_a_zero()
+        $ ETAT.cfg["carton_s"] = 0.5
+        $ ETAT.cfg["duel_s"] = 0.5
         run Jump("start")
         assert screen "s_titre" timeout 8
     testcase captures_scenario:
         description "Captures des temps forts de la démo guidée (botnet, cockpit en reprise, épilogue)"
         keysym "d"
-        pause 24.0
+        pause 6.0
         screenshot "../captures/07-botnet.png"
         assert screen "scenario_salle" timeout 30
         pause 1.5
@@ -414,6 +427,8 @@ testsuite visuel:
         exit
     before testcase:
         $ test_remise_a_zero()
+        $ ETAT.cfg["carton_s"] = 0.5
+        $ ETAT.cfg["duel_s"] = 0.5
         run Jump("start")
         assert screen "s_titre" timeout 8
 
@@ -466,3 +481,26 @@ testsuite visuel:
         click "Je fais confiance au système"
         assert screen "s_epilogue" timeout 3
         screenshot "../captures/06-epilogue.png"
+        keysym "K_ESCAPE"
+        assert screen "s_titre" timeout 5
+        keysym "1"
+        assert screen "s_terminal" timeout 5
+        click "AUTONOMIE : LE DUEL"
+        assert screen "s_duel" timeout 10
+        pause 4.0
+        screenshot "../captures/10-duel.png"
+
+
+testsuite reel:
+    teardown:
+        exit
+    testcase duel_llm:
+        description "Mode reel : le modele fait parler LE HACKER dans le duel (SIM_LLM=1)"
+        run Jump("start")
+        assert screen "s_titre" timeout 8
+        keysym "1"
+        assert screen "s_terminal" timeout 5
+        click "AUTONOMIE : LE DUEL"
+        assert screen "s_duel" timeout 10
+        pause 20.0
+        screenshot "../captures/10-duel-reel.png"

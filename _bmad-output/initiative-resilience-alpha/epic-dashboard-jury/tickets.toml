@@ -1,0 +1,120 @@
+[[entry]]
+id = 1
+type = "story"
+title = "Salle de contrôle : squelette à trois colonnes, santé et mode (tracer)"
+description = "Écran S7 du jeu, projeté sur le PC Hôte : trois colonnes (Capuchon, Plateforme, Badge) avec la santé et le mode de chaque interface."
+verify = "L'écran reflète un arrêt puis une reprise de la plateforme."
+covers = ["FR-12", "FR-20"]
+after = ["4.1", "1.6"]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 2
+type = "story"
+title = "Vues avant, pendant, après, composants, événements, alertes et frise de reprise"
+description = "Onglets du cockpit : trois moments, liste des composants, des événements et des alertes, temps de reprise mesuré."
+verify = "Le temps de reprise affiché correspond au chronomètre mesuré ; les composants, événements et alertes sont listés."
+covers = ["FR-12"]
+after = [1, "2.2"]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 3
+type = "story"
+title = "Colonne Capuchon : événements d'attaque déclarés"
+description = "Le poste attaquant déclare ses événements (début et fin d'attaque) ; la colonne les affiche avec leur source ; le terminal du jeu reste la vue Red Crew."
+verify = "Un événement déclaré par le poste attaquant apparaît avec la source attaquant ; l'alerte reste distincte."
+covers = ["FR-13", "FR-20"]
+after = ["4.4", 1, "1.10"]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 4
+type = "story"
+title = "Relecture par une personne extérieure"
+description = "Une personne extérieure regarde la salle de contrôle seule et dit ce qu'elle comprend."
+verify = "Elle décrit correctement avant, pendant et après sans aide."
+covers = ["FR-12"]
+after = [2, 5, 6, 7]
+hitl = true
+risk = "low"
+
+[[entry]]
+id = 5
+type = "story"
+title = "Courbe du score d'anomalie en direct"
+description = "Affiche la série de scores, le seuil et les fenêtres d'attaque déclarées ; « pas de détecteur branché » si la série est vide."
+verify = "Pendant une attaque simulée la courbe dépasse le seuil ; sans série, aucun tracé n'est inventé."
+covers = ["FR-21"]
+after = [1, "1.10"]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 6
+type = "story"
+title = "Journal défilant et cartes de personnages vivantes"
+description = "Journal des événements avec une couleur par source, et une carte par personnage indiquant son état en direct."
+verify = "Une attaque, une alerte et une reprise y apparaissent dans l'ordre, chacune avec sa source."
+covers = ["FR-20"]
+after = [1, 2]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 7
+type = "story"
+title = "Mode projection plein écran"
+description = "Mode sans boutons pour la projection et le clip de 60 s ; la capture réelle continue reste exigée."
+verify = "Le mode s'ouvre en plein écran sans bouton et sans masquer l'avancement de la reprise."
+covers = ["FR-25"]
+after = [6]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 8
+type = "story"
+title = "Recommandation IA dans la salle de contrôle"
+description = "La colonne Badge affiche la recommandation du détecteur (résumé, action, confiance), étiquetée informative et simulée si besoin."
+verify = "L'alerte simulée fait apparaître sa recommandation ; sans recommandation, « pas de recommandation »."
+covers = ["FR-26"]
+after = [1, "1.11"]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 9
+type = "story"
+title = "Panneau des flux bloqués dans la salle de contrôle"
+description = "Affiche les flux bloqués (source, règle, nombre) ; « pas de WAF branché » si la liste est vide."
+verify = "Une attaque d'injection simulée fait monter le total de blocages ; sans WAF, aucun chiffre inventé."
+covers = ["FR-30"]
+after = [1, "1.12"]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 10
+type = "story"
+title = "Mise en valeur : agrandir l'essentiel et faire place à la recommandation"
+description = "Santé, durée de reprise et recommandation IA agrandies ; colonnes rééquilibrées pour la recommandation."
+verify = "Aucun texte ne déborde à 1280 par 720 ; les trois éléments sont nettement plus grands que le journal (capture relue)."
+covers = ["FR-31"]
+after = [8, 9]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 11
+type = "story"
+title = "Option plan B : page React + Tailwind minimale en lecture seule"
+description = "Page très simple lisant les mêmes routes, pour couvrir l'exigence React + Tailwind du sujet sans changer la salle dans Ren'Py."
+verify = "La page affiche santé, composants et alertes à partir des mêmes routes."
+covers = []
+after = [1]
+hitl = false
+risk = "low"

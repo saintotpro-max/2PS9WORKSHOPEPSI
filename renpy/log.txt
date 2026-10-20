@@ -1,35 +1,31 @@
-2026-10-20 07:29:34 UTC
+2026-10-20 09:33:19 UTC
 Linux-6.12.32-amd64-x86_64-with-glibc2.41
 Ren'Py 8.5.3.26051504
 
-Early init took 50 ms
-Loading error handling took 18 ms
-Loading script took 77 ms
-Loading save slot metadata took 20 ms
+Early init took 46 ms
+Loading error handling took 16 ms
+Loading script took 72 ms
+Loading save slot metadata took 18 ms
 Loading persistent took 0 ms
-Running init code took 37 ms
-Loading analysis data took 11 ms
+Running init code took 34 ms
+Loading analysis data took 9 ms
 Analyze and compile ATL took 1 ms
 Reloading save slot metadata took 3 ms
 Dump and make backups took 0 ms
 Cleaning cache took 0 ms
 Making clean stores took 0 ms
-Initial gc took 38 ms
+Initial gc took 35 ms
 DPI scale factor: 1.000000
 Creating interface object took 0 ms
 Init translation took 0 ms
 Cleaning stores took 0 ms
-Load screen analysis took 25 ms
+Load screen analysis took 24 ms
 Analyze screens took 1 ms
 Save screen analysis took 0 ms
 Save pyanalysis took 0 ms
 Save bytecode took 0 ms
-[rpytest] [log] Running 2 test(s) marked with 'only' flag.
-[rpytest] [log] - global.jeu
-[rpytest] [log] - global.jeu
-[rpytest] [exc] + global
-Running _start took 2 ms
-Interface start took 402 ms
+Running _start took 1 ms
+Interface start took 374 ms
 
 Initializing gl2 renderer:
 primary display bounds: (0, 0, 1920, 1200)
@@ -41,244 +37,3 @@ Version: '4.6 (Compatibility Profile) Mesa 25.0.7-2'
 Display Info: <Info({'bitsize': 32, 'bytesize': 4, 'masks': (16711680, 65280, 255, 0), 'shifts': (16, 8, 0, 0), 'losses': (0, 0, 0, 8), 'current_w': 1920, 'current_h': 1200, 'refresh_rate': 60, 'hw': False, 'wm': True, 'video_mem': 268435456, 'blit_hw': False, 'blit_hw_CC': False, 'blit_hw_A': False, 'blit_sw': False, 'blit_sw_CC': False, 'blit_sw_A': False})>
 Screen sizes: virtual=(1280, 720) physical=(1280, 720) drawable=(1280, 720)
 Maximum texture size: 4096x4096
-[rpytest] [exc]   + jeu
-[rpytest] [exc]     - paiement_reel_avant_attaque
-[rpytest] [exc]     - paiement_reel_avant_attaque (0.034 s)
-[rpytest] [exc]     - attaque_panne_reprise_paiement
-[rpytest] [exc]     - attaque_panne_reprise_paiement (4.726 s)
-[rpytest] [exc]     - plateforme_injoignable
-[rpytest] [exc]     - plateforme_injoignable (0.508 s)
-[rpytest] [exc]     - script_en_echec_affiche_tel_quel
-[rpytest] [exc]     - script_en_echec_affiche_tel_quel (0.043 s)
-[rpytest] [exc]     - soc_refuse_intervention_manuelle
-[rpytest] [exc]     - soc_refuse_intervention_manuelle (0.362 s)
-[rpytest] [exc]     - demo_refusee_si_interface_simulee
-[rpytest] [exc]     - demo_refusee_si_interface_simulee (0.016 s)
-[rpytest] [exc]     - salle_de_controle_trois_points_de_vue
-[rpytest] [exc]     - salle_de_controle_trois_points_de_vue (3.160 s)
-[rpytest] [exc]     - vague_participation_cockpit
-[rpytest] [exc]     - vague_participation_cockpit (1.115 s)
-[rpytest] [exc]     - scenario_boucle_b
-[rpytest] [exc]     - scenario_boucle_b (42.057 s)
-[rpytest] [exc]     - repetition_ex12
-[rpytest] [exc]     - repetition_ex12 (16.150 s)
-[rpytest] [exc]     - role_attaquant_une_seule_porte
-[rpytest] [exc]     - role_attaquant_une_seule_porte (0.019 s)
-[rpytest] [exc]     - role_hote_sans_capuchon
-[rpytest] [exc]     - role_hote_sans_capuchon (0.023 s)
-[rpytest] [exc]     - demo_refusee_sans_role_verrouille
-[rpytest] [exc]     - demo_refusee_sans_role_verrouille (0.026 s)
-[rpytest] [exc]     - message_soc_selon_alerte
-[rpytest] [exc]     - message_soc_selon_alerte (4.408 s)
-[rpytest] [exc]     - epilogue_apres_incident
-
-Full traceback:
-  File "renpy/test/testexecution.py", line 549, in update
-    node_executor.execute()
-    ~~~~~~~~~~~~~~~~~~~~~^^
-  File "renpy/test/testexecution.py", line 462, in execute
-    self.check_for_timeout(now)
-    ~~~~~~~~~~~~~~~~~~~~~~^^^^^
-  File "renpy/test/testexecution.py", line 508, in check_for_timeout
-    raise RenpyTestTimeoutError(f"TestCase timed out after {_test.timeout} seconds.")
-renpy.test.types.RenpyTestTimeoutError: TestCase timed out after 5.0 seconds.
-
-While running game code:
-renpy.test.types.RenpyTestTimeoutError: TestCase timed out after 5.0 seconds.
-File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/game/script.rpy", line 19, in script
-  $ suite = renpy.call_screen("s_soc")
-
-During testcase execution:
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/.", line 0, in None
-    
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/game/testcases.rpy", line 158, in testsuite global
-    testsuite jeu:
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/game/testcases.rpy", line 289, in testsuite jeu
-    testcase epilogue_apres_incident:
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/game/testcases.rpy", line 295, in testcase epilogue_apres_incident
-    click "Suite : décider"
-
-====================
-[rpytest] [exc]     - epilogue_apres_incident (7.747 s)
-[rpytest] [exc]     - epilogue_apres_incident (7.747 s)
-[rpytest] [exc]     - stop_arrete_l_outil_et_ses_enfants
-
-Full traceback:
-  File "renpy/test/testexecution.py", line 549, in update
-    node_executor.execute()
-    ~~~~~~~~~~~~~~~~~~~~~^^
-  File "renpy/test/testexecution.py", line 471, in execute
-    self.node_state = self.node.execute(self.node_state, elapsed)
-                      ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "renpy/test/testast.py", line 1458, in execute
-    renpy.test.testreporter.reporter.log_assert(self)
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
-  File "renpy/test/testreporter.py", line 888, in log_assert
-    raise RenpyTestAssertionError(f"{status.value}: {assert_node}")
-renpy.test.types.RenpyTestAssertionError: failed: <Assert (game/testcases.rpy:304)>
-
-While running game code:
-renpy.test.types.RenpyTestAssertionError: failed: <Assert (game/testcases.rpy:304)>
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/game/script.rpy", line 15, in script
-    call screen s_terminal
-
-During testcase execution:
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/.", line 0, in None
-    
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/game/testcases.rpy", line 158, in testsuite global
-    testsuite jeu:
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/game/testcases.rpy", line 299, in testsuite jeu
-    testcase stop_arrete_l_outil_et_ses_enfants:
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/game/testcases.rpy", line 304, in testcase stop_arrete_l_outil_et_ses_enfants
-    assert eval test_enfant_vivant() timeout 6
-
-====================
-[rpytest] [exc]     - stop_arrete_l_outil_et_ses_enfants (6.083 s)
-[rpytest] [exc]     - stop_arrete_l_outil_et_ses_enfants (6.083 s)
-[rpytest] [exc]     - stop_sans_script_le_dit
-
-Full traceback:
-  File "renpy/test/testexecution.py", line 549, in update
-    node_executor.execute()
-    ~~~~~~~~~~~~~~~~~~~~~^^
-  File "renpy/test/testexecution.py", line 471, in execute
-    self.node_state = self.node.execute(self.node_state, elapsed)
-                      ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "renpy/test/testast.py", line 1458, in execute
-    renpy.test.testreporter.reporter.log_assert(self)
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
-  File "renpy/test/testreporter.py", line 888, in log_assert
-    raise RenpyTestAssertionError(f"{status.value}: {assert_node}")
-renpy.test.types.RenpyTestAssertionError: failed: <Assert (game/testcases.rpy:313)>
-
-While running game code:
-renpy.test.types.RenpyTestAssertionError: failed: <Assert (game/testcases.rpy:313)>
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/game/script.rpy", line 15, in script
-    call screen s_terminal
-
-During testcase execution:
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/.", line 0, in None
-    
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/game/testcases.rpy", line 158, in testsuite global
-    testsuite jeu:
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/game/testcases.rpy", line 309, in testsuite jeu
-    testcase stop_sans_script_le_dit:
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/game/testcases.rpy", line 313, in testcase stop_sans_script_le_dit
-    assert eval test_rien_a_arreter() timeout 3
-
-====================
-[rpytest] [exc]     - stop_sans_script_le_dit (3.080 s)
-[rpytest] [exc]     - stop_sans_script_le_dit (3.080 s)
-[rpytest] [exc]     - attaque_niveau_1_lancee_puis_arretee
-
-Full traceback:
-  File "renpy/test/testexecution.py", line 549, in update
-    node_executor.execute()
-    ~~~~~~~~~~~~~~~~~~~~~^^
-  File "renpy/test/testexecution.py", line 471, in execute
-    self.node_state = self.node.execute(self.node_state, elapsed)
-                      ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "renpy/test/testast.py", line 1458, in execute
-    renpy.test.testreporter.reporter.log_assert(self)
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
-  File "renpy/test/testreporter.py", line 888, in log_assert
-    raise RenpyTestAssertionError(f"{status.value}: {assert_node}")
-renpy.test.types.RenpyTestAssertionError: failed: <Assert (game/testcases.rpy:320)>
-
-While running game code:
-renpy.test.types.RenpyTestAssertionError: failed: <Assert (game/testcases.rpy:320)>
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/game/script.rpy", line 15, in script
-    call screen s_terminal
-
-During testcase execution:
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/.", line 0, in None
-    
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/game/testcases.rpy", line 158, in testsuite global
-    testsuite jeu:
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/game/testcases.rpy", line 315, in testsuite jeu
-    testcase attaque_niveau_1_lancee_puis_arretee:
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/game/testcases.rpy", line 320, in testcase attaque_niveau_1_lancee_puis_arretee
-    assert eval test_en_cours() timeout 5
-
-====================
-[rpytest] [exc]     - attaque_niveau_1_lancee_puis_arretee (5.082 s)
-[rpytest] [exc]     - attaque_niveau_1_lancee_puis_arretee (5.082 s)
-[rpytest] [exc]     - attaque_niveau_2_lancee_puis_arretee
-
-Full traceback:
-  File "renpy/test/testexecution.py", line 549, in update
-    node_executor.execute()
-    ~~~~~~~~~~~~~~~~~~~~~^^
-  File "renpy/test/testexecution.py", line 471, in execute
-    self.node_state = self.node.execute(self.node_state, elapsed)
-                      ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "renpy/test/testast.py", line 1458, in execute
-    renpy.test.testreporter.reporter.log_assert(self)
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
-  File "renpy/test/testreporter.py", line 888, in log_assert
-    raise RenpyTestAssertionError(f"{status.value}: {assert_node}")
-renpy.test.types.RenpyTestAssertionError: failed: <Assert (game/testcases.rpy:331)>
-
-While running game code:
-renpy.test.types.RenpyTestAssertionError: failed: <Assert (game/testcases.rpy:331)>
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/game/script.rpy", line 15, in script
-    call screen s_terminal
-
-During testcase execution:
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/.", line 0, in None
-    
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/game/testcases.rpy", line 158, in testsuite global
-    testsuite jeu:
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/game/testcases.rpy", line 326, in testsuite jeu
-    testcase attaque_niveau_2_lancee_puis_arretee:
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/game/testcases.rpy", line 331, in testcase attaque_niveau_2_lancee_puis_arretee
-    assert eval test_en_cours() timeout 5
-
-====================
-[rpytest] [exc]     - attaque_niveau_2_lancee_puis_arretee (5.086 s)
-[rpytest] [exc]     - attaque_niveau_2_lancee_puis_arretee (5.086 s)
-[rpytest] [exc]     - attaque_niveau_3_lancee_puis_arretee
-
-Full traceback:
-  File "renpy/test/testexecution.py", line 549, in update
-    node_executor.execute()
-    ~~~~~~~~~~~~~~~~~~~~~^^
-  File "renpy/test/testexecution.py", line 471, in execute
-    self.node_state = self.node.execute(self.node_state, elapsed)
-                      ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "renpy/test/testast.py", line 1458, in execute
-    renpy.test.testreporter.reporter.log_assert(self)
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
-  File "renpy/test/testreporter.py", line 888, in log_assert
-    raise RenpyTestAssertionError(f"{status.value}: {assert_node}")
-renpy.test.types.RenpyTestAssertionError: failed: <Assert (game/testcases.rpy:341)>
-
-While running game code:
-renpy.test.types.RenpyTestAssertionError: failed: <Assert (game/testcases.rpy:341)>
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/game/script.rpy", line 15, in script
-    call screen s_terminal
-
-During testcase execution:
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/.", line 0, in None
-    
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/game/testcases.rpy", line 158, in testsuite global
-    testsuite jeu:
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/game/testcases.rpy", line 336, in testsuite jeu
-    testcase attaque_niveau_3_lancee_puis_arretee:
-  File "/home/lsaintot/Téléchargements/FORMAT BEAMER(2)/WORKSHOP EPSI/renpy/game/testcases.rpy", line 341, in testcase attaque_niveau_3_lancee_puis_arretee
-    assert eval test_en_cours() timeout 5
-
-====================
-[rpytest] [exc]     - attaque_niveau_3_lancee_puis_arretee (5.085 s)
-[rpytest] [exc]     - attaque_niveau_3_lancee_puis_arretee (5.085 s)
-[rpytest] [exc]     - attaque_niveau_4_injection_bloquee_puis_arretee
-
-[rpytest] Test outcomes (Summary)
-[rpytest] Test suites:     5 |     0 passed |     0 xfailed |     2 failed |     0 xpassed |     0 skipped |     3 not run
-[rpytest] Test cases :    24 |    14 passed |     0 xfailed |     6 failed |     0 xpassed |     0 skipped |     4 not run
-[rpytest] Test hooks :    21 |    21 passed |     0 xfailed |     0 failed |     0 xpassed |     0 skipped |     0 not run
-[rpytest] Assertions :    62 |    57 passed |     0 xfailed |     5 failed |     0 xpassed | 
-
-[rpytest] Time: 106.971 s [01:46]
-[rpytest] Status: FAILED 
-

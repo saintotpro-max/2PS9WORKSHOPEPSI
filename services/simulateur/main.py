@@ -56,11 +56,16 @@ ACTIONS_VALIDES = ("restart_service", "block_source", "rate_limit", "scale_up", 
 DESCRIPTION_NIVEAU = {1: "charge applicative : afflux de requêtes sur /transactions",
                        2: "connexions lentes qui épuisent les ressources du serveur",
                        3: "saturation du réseau par des paquets SYN depuis une seule source",
-                       4: "tentatives d'injection SQL sur /transactions"}
+                       4: "tentatives d'injection SQL sur /transactions",
+                       5: "tentatives d'authentification en force sur /auth/token (OWASP A07)",
+                       6: "accès à des transactions d'autres comptes par l'identifiant (OWASP A01, IDOR)"}
 SOURCE_ATTAQUANT = "192.168.137.20"
-KIND = {1: "dos", 2: "dos", 3: "dos", 4: "injection"}
-SEVERITE = {1: "high", 2: "high", 3: "high", 4: "medium"}
-REGLE_WAF = {1: "limite de débit", 2: "connexions lentes", 3: "saturation réseau (SYN)", 4: "injection SQL"}
+# Niveaux qui se BLOQUENT et se VÉRIFIENT sans panne du service (injection + OWASP applicatif).
+SANS_PANNE = {4, 5, 6}
+KIND = {1: "dos", 2: "dos", 3: "dos", 4: "injection", 5: "auth", 6: "acces"}
+SEVERITE = {1: "high", 2: "high", 3: "high", 4: "medium", 5: "high", 6: "high"}
+REGLE_WAF = {1: "limite de débit", 2: "connexions lentes", 3: "saturation réseau (SYN)", 4: "injection SQL",
+             5: "authentification en force", 6: "contrôle d'accès (IDOR)"}
 RECOMMANDATION = {
     1: dict(summary="Pic de requêtes anormal sur payment-api : saturation applicative probable",
             suggested_action="rate_limit", confidence=0.91, rationale="score 0.97 ; erreurs 5xx en hausse"),
@@ -70,6 +75,10 @@ RECOMMANDATION = {
             suggested_action="block_source", confidence=0.88, rationale="flux SYN massif depuis une seule source"),
     4: dict(summary="Tentatives d'injection sur /transactions bloquées par le WAF",
             suggested_action="block_source", confidence=0.95, rationale="motifs d'injection SQL répétés"),
+    5: dict(summary="Authentification en force sur /auth/token bloquée (identifiants invalides répétés)",
+            suggested_action="block_source", confidence=0.93, rationale="nombreux échecs de connexion depuis une seule source"),
+    6: dict(summary="Accès refusé à des transactions d'autres comptes : contrôle d'accès appliqué",
+            suggested_action="block_source", confidence=0.94, rationale="identifiants de transaction non autorisés tentés en série"),
 }
 
 
@@ -98,7 +107,7 @@ def phase(instant: float | None = None) -> str:
         return "sain"
     maintenant_t = time.time() if instant is None else instant
     t = maintenant_t - a["t0"]
-    if t < 0 or a["niveau"] == 4:
+    if t < 0 or a["niveau"] in SANS_PANNE:
         return "sain"
     arret = a.get("arret_t")
     if arret is not None and maintenant_t >= arret:
@@ -121,17 +130,18 @@ def echantillonner() -> None:
         graine = random.Random(t)
         bruit = graine.random()
         base = {"sain": 0.12 + bruit * 0.10, "attaque": 0.78 + bruit * 0.20, "reprise": 0.55 + bruit * 0.20}[p]
-        injection_en_cours = bool(a) and a["niveau"] == 4 and a["t0"] <= t and (a.get("arret_t") is None or t < a["arret_t"])
-        if injection_en_cours:
+        bloc_en_cours = bool(a) and a["niveau"] in SANS_PANNE and a["t0"] <= t and (a.get("arret_t") is None or t < a["arret_t"])
+        if bloc_en_cours:
             base = 0.74 + bruit * 0.15
         etat["scores"].append(dict(at=iso(datetime.fromtimestamp(t, timezone.utc)), score=round(base, 3),
-                                   threshold=SEUIL, label="attaque" if (p != "sain" or injection_en_cours) else "normal"))
+                                   threshold=SEUIL, label="attaque" if (p != "sain" or bloc_en_cours) else "normal"))
         en_cours = bool(a) and a["t0"] <= t and (a.get("arret_t") is None or t < a["arret_t"]) and (
-            a["niveau"] == 4 or t - a["t0"] < a["detection_s"] + a["reprise_s"])
+            a["niveau"] in SANS_PANNE or t - a["t0"] < a["detection_s"] + a["reprise_s"])
         if en_cours:
             n = a["niveau"]
             nombre = {1: 5 + int(graine.random() * 10), 2: 1 + int(graine.random() * 3),
-                      3: 15 + int(graine.random() * 26), 4: 3 + int(graine.random() * 7)}[n]
+                      3: 15 + int(graine.random() * 26), 4: 3 + int(graine.random() * 7),
+                      5: 4 + int(graine.random() * 8), 6: 2 + int(graine.random() * 5)}[n]
             etat["flux"].append(dict(at=iso(datetime.fromtimestamp(t, timezone.utc)), source_ip=SOURCE_ATTAQUANT,
                                      rule=REGLE_WAF[n], count=nombre, target="payment-api"))
             etat["flux_total"] += nombre
@@ -157,7 +167,7 @@ def avancer() -> None:
     ecoule = maintenant_t - a["t0"]
     arret_t = a.get("arret_t")
     arrete_avant_detection = arret_t is not None and arret_t - a["t0"] < a["detection_s"]
-    injection = a["niveau"] == 4
+    injection = a["niveau"] in SANS_PANNE
     if not injection and "degrade" not in a["faits"]:
         a["faits"].add("degrade")
         etat["evenements"].append(evenement(iso(debut), "service_degraded", "payment-api",
@@ -225,7 +235,7 @@ class Question(BaseModel):
 
 
 class Attaque(BaseModel):
-    niveau: int = Field(default=1, ge=1, le=4)
+    niveau: int = Field(default=1, ge=1, le=6)
     detection_s: float = Field(default=float(os.environ.get("DELAI_DETECTION_S", "5.0")), ge=0)
     reprise_s: float = Field(default=float(os.environ.get("DELAI_REPRISE_S", "8.0")), ge=0)
 

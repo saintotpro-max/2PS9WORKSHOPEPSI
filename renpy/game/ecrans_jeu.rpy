@@ -70,8 +70,8 @@ style hud_texte is text:
 
 init python:
     PORTES = [
-        ("1", "LE CAPUCHON", "l'attaquant", "visage hacker", "carte_rouge", "hacker"),
-        ("2", "LA VIGIE", "l'analyste SOC", "visage badge", "carte_bleue", "soc"),
+        ("1", "LE HACKER", "l'attaquant", "visage hacker", "carte_rouge", "hacker"),
+        ("2", "LA SENTINELLE", "l'IA de défense", "visage badge", "carte_bleue", "soc"),
         ("3", "LE CLIENT", "le paiement", "visage ombre", "carte_grise", "client"),
         ("4", "LA TOUR", "la supervision", "visage salle", "carte_verte", "salle"),
     ]
@@ -291,11 +291,13 @@ screen s_terminal():
                 add "visage hacker" zoom 0.5 at respiration
                 vbox:
                     yalign 0.5
-                    text "LE CAPUCHON" font POLICE_TITRE size 20 color "#ff7b86"
+                    text "LE HACKER" font POLICE_TITRE size 20 color "#ff7b86"
                     text "l'attaquant" font POLICE_ETROITE size 20 color "#8b949e"
             for numero, nom in NIVEAUX:
                 textbutton nom style "bouton_petit_rouge" action Function(lancer_niveau, numero) sensitive (ETAT.terminal_etat != "en_cours")
-            null height 10
+            null height 8
+            textbutton "AUTONOMIE : LE DUEL" style "bouton_petit" action Jump("autonomie") sensitive (ETAT.terminal_etat != "en_cours")
+            null height 6
             textbutton "STOP" style "bouton_stop" action Function(arreter_script)
             textbutton "Retour" style "bouton_petit" action Return("titre")
         vbox:
@@ -360,8 +362,8 @@ screen s_soc():
             spacing 6
             xsize 200
             add "visage badge" xalign 0.5 at respiration
-            text "LA VIGIE" font POLICE_TITRE size 20 color "#1b2433" xalign 0.5
-            text "l'analyste SOC" font POLICE_ETROITE size 20 color "#57606a" xalign 0.5
+            text "LA SENTINELLE" font POLICE_TITRE size 20 color "#1b2433" xalign 0.5
+            text "l'IA de défense" font POLICE_ETROITE size 20 color "#57606a" xalign 0.5
             text "lecture seule" font POLICE_ETROITE size 17 color "#8f1d2a" xalign 0.5
         vbox:
             spacing 10
@@ -510,7 +512,7 @@ screen s_salle():
             padding (14, 12)
             vbox:
                 spacing 6
-                use colonne_titre("#ff7b86", "LE CAPUCHON", etat_capuchon(), "visage hacker", 300)
+                use colonne_titre("#ff7b86", "LE HACKER", etat_capuchon(), "visage hacker", 300)
                 for e in evenements_de("attaquant", 5):
                     text (heure(e) + "  " + sur(e["detail"])) font POLICE_TERMINAL size 16 color "#ff7b86"
         frame:
@@ -543,7 +545,7 @@ screen s_salle():
             padding (16, 12)
             vbox:
                 spacing 6
-                use colonne_titre("#e3b341", "LA VIGIE", etat_badge(), "visage badge", 446)
+                use colonne_titre("#e3b341", "LA SENTINELLE", etat_badge(), "visage badge", 446)
                 use bloc_recommandation(False)
                 text sur("Alerte  " + libelle_alerte_longue()) font POLICE_TERMINAL size 16 color ("#ff7b86" if ETAT.alerte else "#6e7681") xmaximum 448
                 for e in evenements_de("moteur", 2):
@@ -670,6 +672,51 @@ screen s_vague():
     key "r" action Function(ui_reset_vague)
     key "K_ESCAPE" action Hide("s_vague")
 
+
+
+init python:
+    # Campagne : les 4 types d'attaque mis en scene, un par palier, du plus simple au
+    # plus retors. (niveau, couleur, nom, ce que ca casse, ce qu'il faut regarder)
+    CAMPAGNE = [
+        (1, "#ff7b86", "SATURER LES PAIEMENTS",
+         "Des milliers de faux clients paient en meme temps.",
+         "La caisse sature. Regardez la sante virer et les paiements echouer."),
+        (2, "#e3b341", "EPUISER LES RESSOURCES",
+         "Des connexions tenues ouvertes, jamais relachees.",
+         "Le service etouffe lentement, sans un paquet de trop."),
+        (3, "#d29922", "SATURER LE RESEAU",
+         "Un flot de paquets noie le lien reseau.",
+         "Le reseau se bouche : la plateforme devient injoignable."),
+        (4, "#58a6ff", "INJECTER UNE REQUETE",
+         "Une requete piegee tente de tromper l'API.",
+         "Celle-la ne se redemarre pas : elle se bloque et se verifie."),
+    ]
+
+
+# Carton de campagne : lisible, ne defile JAMAIS tout seul (espace pour avancer).
+# C'est la correction du reproche "ca va trop vite, on comprend rien".
+screen s_carton(couleur, titre, quoi="", regardez=""):
+    modal True
+    zorder 150
+    add "bg ville" at panorama
+    add Solid("#05060ff2")
+    vbox:
+        xalign 0.5
+        yalign 0.5
+        spacing 20
+        xsize 1040
+        add Solid(couleur, xysize=(1040, 5))
+        text titre font POLICE_TITRE size 50 color couleur xalign 0.5 text_align 0.5
+        if quoi:
+            text quoi font POLICE_ETROITE size 30 color "#ffffff" xalign 0.5 text_align 0.5 xmaximum 1000
+        if regardez:
+            text regardez font POLICE_ETROITE size 24 color "#9fb0d8" xalign 0.5 text_align 0.5 xmaximum 1000
+    text "espace pour continuer" font POLICE_ETROITE size 18 color "#6e7681" xalign 0.5 ypos 656
+    key "K_SPACE" action Return(True)
+    key "K_RETURN" action Return(True)
+    # Avance seule apres un delai lisible (regle par carton_s) : l'humain a le temps de
+    # lire ou saute a l'espace ; en projection ou en test, ca progresse sans clavier.
+    timer ETAT.cfg.get("carton_s", 8.0) action Return(True)
 
 
 screen intertitre(titre, sous=""):

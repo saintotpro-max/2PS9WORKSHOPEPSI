@@ -1,0 +1,186 @@
+[[entry]]
+id = 1
+type = "story"
+title = "Attaque réelle de niveau 1 (tracer)"
+description = "Lance un déni de service contrôlé depuis le PC Attaquant contre la plateforme."
+verify = "Les métriques et le cockpit montrent un trafic anormal et une dégradation."
+covers = ["FR-10"]
+after = ["1.2"]
+hitl = true
+risk = "medium"
+
+[[entry]]
+id = 2
+type = "story"
+title = "Moteur de remédiation contre le simulateur"
+description = "Reçoit l'alerte, exécute l'action, vérifie par une nouvelle transaction."
+verify = "Attaque simulée, alerte, action puis transaction réussie sans intervention."
+covers = ["FR-8"]
+after = ["1.4", "1.5"]
+hitl = false
+risk = "high"
+
+[[entry]]
+id = 3
+type = "story"
+title = "Droits limités et journal du moteur"
+description = "Limite les droits du moteur aux actions prévues et journalise chaque action."
+verify = "Une action hors liste est refusée ; chaque action apparaît au journal."
+covers = ["FR-9"]
+after = [2]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 4
+type = "story"
+title = "Niveaux d'attaque 2 et 3"
+description = "Ajoute l'épuisement mémoire et la coupure réseau, avec une injection pour montrer le WAF."
+verify = "Chaque niveau produit un effet distinct observable."
+covers = ["FR-10"]
+after = [1]
+hitl = true
+risk = "medium"
+
+[[entry]]
+id = 5
+type = "story"
+title = "Gel de l'arsenal"
+description = "Relit, versionne et gèle les scripts avant jeudi 17 h."
+verify = "Les scripts gelés rejouent le même effet à chaque passage, sans appel à un modèle."
+covers = ["FR-11"]
+after = [4]
+hitl = true
+risk = "medium"
+
+[[entry]]
+id = 6
+type = "story"
+title = "Branchement à la détection et à la supervision réelles"
+description = "Remplace les alertes simulées par celles des collègues."
+verify = "La boucle passe en mode réel de bout en bout une fois."
+covers = ["FR-8"]
+after = [3]
+hitl = true
+risk = "high"
+unknown = "Quand les collègues livrent-ils la détection ML et la supervision ?"
+[[entry]]
+id = 7
+type = "story"
+title = "Fiabilisation : 10 passages de suite"
+description = "Rejoue la boucle complète en réel et corrige ce qui casse."
+verify = "10 passages consécutifs sans intervention."
+covers = ["FR-8", "FR-10", "FR-11"]
+after = [5, 6]
+hitl = false
+risk = "high"
+plan_checkpoint = true
+[[entry]]
+id = 8
+type = "story"
+title = "Moteur : action suggérée validée par liste blanche et vérifications de reprise"
+description = "Le moteur lit la recommandation de l'alerte, n'applique l'action suggérée que si elle est dans sa liste blanche (sinon action par défaut, dite au journal) et expose /verifications mesurées."
+verify = "Une action hors liste blanche est refusée et journalisée ; les vérifications ne passent ok qu'après mesure."
+covers = ["FR-26", "FR-28"]
+after = [2, "1.11"]
+hitl = false
+risk = "high"
+
+[[entry]]
+id = 9
+type = "story"
+title = "Attaque de type injection : flux bloqués par le WAF"
+description = "Ajoute une attaque d'injection applicative qui montre la défense (WAF) sans dégrader le service."
+verify = "Les requêtes d'injection sont bloquées et apparaissent dans les flux bloqués ; le service reste sain."
+covers = ["FR-33", "FR-30"]
+after = [4]
+hitl = true
+risk = "medium"
+
+[[entry]]
+id = 10
+type = "story"
+title = "Arrêt propre des outils d'attaque, Linux et Windows"
+description = "Les outils sont lancés dans leur propre groupe de processus ; l'arrêt tue l'arbre entier ; les droits requis (hping3) sont signalés avant le lancement."
+verify = "Après l'arrêt, aucun processus enfant ne survit, sur Linux et sur Windows ; l'exigence de droits est affichée."
+covers = ["FR-32"]
+after = [1]
+hitl = true
+risk = "medium"
+
+[[entry]]
+id = 11
+type = "story"
+title = "Matrice attaque, détection, décision, action, vérification"
+description = "Rédige la matrice par type d'attaque (charge, connexions lentes, saturation réseau, injection) et par panne (chaos), pour le dossier et le moteur."
+verify = "Chaque ligne a une action distincte et une vérification ; disponibilité et compromission ne sont pas confondues."
+covers = ["FR-36"]
+after = [1]
+hitl = true
+risk = "low"
+
+[[entry]]
+id = 12
+type = "story"
+title = "Actions du moteur : accès restreint (proxy Docker ou playbooks Ansible)"
+description = "Choisit avec l'infra comment le moteur agit : proxy Docker limité aux actions prévues, ou playbooks Ansible ; accès total interdit."
+verify = "Le moteur ne peut accomplir que les actions de la liste ; une autre est refusée et journalisée."
+covers = ["FR-36", "FR-9"]
+after = [3]
+hitl = true
+risk = "high"
+
+[[entry]]
+id = 13
+type = "story"
+title = "Pannes non malveillantes (chaos) reprises par le moteur"
+description = "Le moteur reprend aussi un conteneur tué ou ralenti (chaos de jeudi) et le vérifie par une transaction."
+verify = "Un conteneur tué par l'outil de chaos est relevé sans intervention et une transaction réussit."
+covers = ["FR-36"]
+after = [6]
+hitl = true
+risk = "medium"
+
+[[entry]]
+id = 14
+type = "story"
+title = "Garde-fou de périmètre des scripts d'attaque"
+description = "Les scripts refusent toute cible hors de 192.168.137.0/24 et de la machine locale."
+verify = "Une cible publique est refusée avant tout envoi, avec un message clair."
+covers = ["FR-37"]
+after = [1]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 15
+type = "story"
+title = "Capture du trafic réel des attaques pour le détecteur"
+description = "Pendant une attaque réelle, enregistre le trafic et les métriques avec les fenêtres d'attaque déclarées comme étiquettes (export CSV)."
+verify = "Le fichier exporté a des lignes normales et des lignes d'attaque étiquetées, issues de vraies attaques."
+covers = ["FR-38"]
+after = [1]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 16
+type = "story"
+title = "Documents du corpus de l'assistant"
+description = "Fournit le runbook d'incident, la description d'architecture et les scénarios d'attaque testés, sans donnée réelle ni secret."
+verify = "Le collègue IA les ingère ; l'assistant en cite un dans une réponse."
+covers = ["FR-38"]
+after = [11]
+hitl = true
+risk = "low"
+
+[[entry]]
+id = 17
+type = "story"
+title = "Documentation de l'attaque : reproductible et expliquée"
+description = "Décrit l'attaque principale pas à pas, avec ses paramètres, de façon reproductible (sujet p.3)."
+verify = "Une personne de l'équipe rejoue l'attaque depuis le seul document."
+covers = ["FR-36"]
+after = [5]
+hitl = false
+risk = "low"

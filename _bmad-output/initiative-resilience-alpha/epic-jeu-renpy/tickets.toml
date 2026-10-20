@@ -1,0 +1,209 @@
+[[entry]]
+id = 8
+type = "story"
+title = "Recherche et choix de ce qu'on réutilise"
+description = "Parcourt la carte de recherche (GitHub, itch.io, OpenGameArt, manuel Ren'Py) pour chaque écran du jeu, vérifie licences et santé des dépôts, et fixe les choix."
+verify = "Chaque écran a un emprunt retenu ou un « à coder » justifié, avec licence consignée."
+covers = ["FR-18"]
+after = []
+hitl = true
+risk = "low"
+references = ["carte-de-recherche.md"]
+
+[[entry]]
+id = 1
+type = "story"
+title = "Scaffold Ren'Py, pont de santé et écran injoignable (tracer)"
+description = "Projet Ren'Py de bureau qui lit la santé toutes les 2 s et affiche l'écran injoignable."
+verify = "Santé absente : écran injoignable, pas de plantage ; clavier seul."
+covers = ["FR-17"]
+after = [8, "1.5"]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 2
+type = "story"
+title = "Choisir et vérifier les assets libres"
+description = "Choisit interface, silhouettes et fonds libres, vérifie licence et santé, remplit CREDITS.md."
+verify = "Chaque asset a source, licence et auteur dans CREDITS.md."
+covers = ["FR-18"]
+after = [8]
+hitl = true
+risk = "low"
+
+[[entry]]
+id = 3
+type = "story"
+title = "Titre, HUD et paiement réel"
+description = "Écran titre à 3 portes, HUD permanent et bouton PAYER qui envoie une vraie transaction."
+verify = "API arrêtée : l'échec réel est affiché ; sinon la réponse de l'API s'affiche telle quelle."
+covers = ["FR-14"]
+after = [1, 2]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 4
+type = "story"
+title = "Terminal hacker"
+description = "Menu de 3 niveaux, exécution du script gelé, sortie réelle, HUD rouge, porte refermée au retour sain."
+verify = "Un script qui échoue affiche son erreur ; relance autorisée avec compteur."
+covers = ["FR-15"]
+after = [3, "1.5"]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 5
+type = "story"
+title = "Poste SOC sans réparation"
+description = "Alerte réelle, une question à l'assistant, intervention manuelle refusée avec l'écran du sujet."
+verify = "Aucun bouton ne répare ; réponse lente : attente honnête."
+covers = ["FR-16"]
+after = [3]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 6
+type = "story"
+title = "Épilogue et intégration, version courte de 5 minutes"
+description = "Écran de fin avec temps de reprise réel et avant/après, puis boucle courte jouée 3 fois."
+verify = "3 passages de suite sans intervention, chronométrés sous 5 minutes."
+covers = ["FR-17"]
+after = [4, 5, "2.1", "2.4", "2.6"]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 7
+type = "story"
+title = "Option : rejouer l'autre route en moins de 2 minutes"
+description = "Relance l'autre route par scénarios accélérés, seulement si la timebox n'est pas écoulée."
+verify = "L'autre route se rejoue en moins de 2 minutes."
+covers = []
+after = [6]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 9
+type = "story"
+title = "Rôle verrouillé par poste"
+description = "Le poste a un rôle (hôte ou attaquant) ; le titre n'offre que les portes de ce rôle ; en démo, un rôle non verrouillé est refusé."
+verify = "Rôle attaquant : une seule porte ; rôle hôte : deux portes ; le jury ne peut pas lancer d'attaque ; démo sans rôle verrouillé refusée."
+covers = ["FR-23"]
+after = [3]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 10
+type = "story"
+title = "« Attendez. Le système sait. » seulement après l'alerte"
+description = "Avant l'alerte, le poste SOC indique que le système observe ; le message de confiance apparaît après réception de l'alerte."
+verify = "Service dégradé sans alerte : message d'observation ; alerte reçue : « Attendez. Le système sait. »"
+covers = ["FR-16"]
+after = [5]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 11
+type = "story"
+title = "Mode répétition automatique avec compteur n / 10"
+description = "Rejoue la boucle complète (paiement, attaque, reprise, paiement) avec un compteur et s'arrête au premier échec."
+verify = "Dix passages enchaînés sans intervention ; le premier échec arrête la boucle et le dit."
+covers = ["FR-24"]
+after = [6]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 12
+type = "story"
+title = "Option : barre d'état propre à chaque personnage"
+description = "Chaque personnage ne voit que ce que son rôle voit (le hacker ne voit pas l'alerte, le client voit seulement le service). Faible priorité."
+verify = "La barre d'état du capuchon n'affiche pas l'alerte de détection."
+covers = []
+after = [3]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 13
+type = "story"
+title = "Refonte du poste SOC en trois étapes"
+description = "Comprendre (alerte, recommandation IA, une question parmi trois), Vérifier (liste de reprise du moteur), Décider (intervenir refusé, faire confiance puis épilogue)."
+verify = "Les trois étapes s'enchaînent ; la liste de reprise suit l'état réel ; aucun bouton ne répare."
+covers = ["FR-27", "FR-26", "FR-28"]
+after = [5, "1.11"]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 14
+type = "story"
+title = "Option : consigner l'incident"
+description = "Le Badge ajoute une note au journal d'incident (source badge), réutilisable pour le dossier de gouvernance."
+verify = "La note apparaît dans le journal avec la source badge et ne modifie aucun système."
+covers = ["FR-29"]
+after = [13]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 15
+type = "story"
+title = "Bouton STOP : arrêt fiable et état « arrêté »"
+description = "STOP arrête l'arbre de processus, affiche « arrêté par l'opérateur », déclare l'événement de fin et le dit s'il n'y a rien à arrêter."
+verify = "Un script long est arrêté avec ses enfants ; le terminal n'affiche pas « échec » ; l'effet cesse côté plateforme."
+covers = ["FR-32"]
+after = [4, "1.13"]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 16
+type = "story"
+title = "Chaque type d'attaque lancé puis arrêté, vérifié par test"
+description = "Un test lance puis arrête chaque niveau (1 à 3) et l'injection et vérifie l'état final."
+verify = "Quatre types lancés et arrêtés, état final sain, aucun processus restant."
+covers = ["FR-33"]
+after = [15, "2.4", "2.9"]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 17
+type = "story"
+title = "Build du jeu pour Windows et test sur les deux postes"
+description = "Produit la distribution du jeu pour Windows (et Linux) et la teste sur le PC Hôte et le PC Attaquant."
+verify = "Le jeu se lance sur les deux postes avec le rôle verrouillé de chacun."
+covers = ["FR-39"]
+after = [6]
+hitl = true
+risk = "medium"
+
+[[entry]]
+id = 18
+type = "story"
+title = "Procédure du clip chrono (60 s, une prise)"
+description = "Procédure écrite et répétée : outil de capture, résolution, déroulé de 60 s sans coupe masquant une action manuelle, titres autorisés."
+verify = "Un clip de 60 s existe, continu, avec attaque, anomalie, réaction et service rétabli."
+covers = ["FR-39"]
+after = [6]
+hitl = true
+risk = "medium"
+
+[[entry]]
+id = 19
+type = "story"
+title = "Liste de contrôle de passage et remise à zéro"
+description = "Liste vérifiée avant chaque passage : réel seulement, rôles verrouillés, ports, accès, plateforme remise à zéro."
+verify = "La liste passe en une commande ; un point faux bloque le lancement en mode démo."
+covers = ["FR-40"]
+after = [9, "1.7", "1.17"]
+hitl = false
+risk = "low"

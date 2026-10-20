@@ -1,0 +1,755 @@
+
+===============================================================================
+ GRAPHIFY v3.1 — PROJECT RESILIENCE-ALPHA — EDITION CONSOLIDEE ET ALIGNEE
+ Dernier canon : v3.0 corrigee contre le PDF sujet relu en entier (12 p.)
+ Statut : RIEN PERDU ; ecarts corriges listes en PART 22 (KEY::ALIGN)
+===============================================================================
+
+CONVENTIONS DE LECTURE
+- [V]   = relu dans le PDF sujet (page citee) ; [V web] = verifie en ligne le
+          2026-10-19 (non rejoue en v3.1) ; [V PPTX] = repris du PPTX, qui
+          n'est PAS dans Docs/ : a re-verifier avant usage
+- [?]   = divergence ou non-verifie, voir boucle retroscopique PART 20
+- [?ORAL] = info donnee a l'oreille par le jury, aucune trace ecrite
+- [D]   = DERIVE : construit par analyse, non contractuel
+- REQ-x = exigence ; R-xx = risque ; EX-n = etape du plan (PART 12)
+- Re-OCR = relire la page pointee du PDF sujet (ancres p.1 a p.12)
+- BUT : citer une KEY, pas reformuler -> lecture ciblee, economie de tokens
+
+-------------------------------------------------------------------------------
+ PART 00 — PLAN DU FICHIER (CLES DISPO)
+-------------------------------------------------------------------------------
+KEY::ROOT              -> PART 01  identite du projet
+KEY::ARCH              -> PART 02  machines, reseau, stack
+KEY::PILLAR::DEV       -> PART 03  pilier developpement
+KEY::PILLAR::INFRA     -> PART 03  pilier infrastructure
+KEY::PILLAR::IA        -> PART 03  pilier IA (ML + RAG, distincts)
+KEY::PILLAR::CYBER     -> PART 03  pilier cyber (attaque + defenses)
+KEY::PILLAR::GOV       -> PART 03  pilier gouvernance (voie parallele)
+KEY::REQ::REGISTRY     -> PART 04  ~75 exigences numerotees
+KEY::SPRINT            -> PART 05  chronologie + livrables
+KEY::BACKLOG           -> PART 06  6 EPICs, 36 stories
+KEY::EVAL              -> PART 07  grilles locale/nationale/scrutin
+KEY::RISK              -> PART 08  R-01 a R-18
+KEY::RELATIONS         -> PART 09  matrice dependances
+KEY::4C                -> PART 10  regle CODE/ADAPTE/RECUPERE/COPIE-COLLE
+KEY::CANDIDATES        -> PART 11  auto-check GitHub des candidats
+KEY::PLAN              -> PART 12  LES 13 ETAPES + assignation equipe
+KEY::COMPOSER          -> PART 13  Attack Composer GLM
+KEY::PERSONA           -> PART 14  4 personas
+KEY::ORAL              -> PART 15  info oreille + strategie bimorphique
+KEY::RENPY             -> PART 16  faisabilite + libs + metriques
+KEY::DOUBLEFACE        -> PART 17  concept jeu deux routes
+KEY::REPO              -> PART 18  arborescence du depot
+KEY::ATTACK::OPTIONS   -> PART 19  options d'attaque [D] + corpus RAG [D]
+KEY::LOOP              -> PART 20  boucle retroscopique re-OCR
+KEY::DECISIONS         -> PART 21  journal des decisions + next steps
+KEY::ALIGN             -> PART 22  journal v3.0 -> v3.1 (ecarts corriges)
+
+-------------------------------------------------------------------------------
+ PART 01 — KEY::ROOT — IDENTITE
+-------------------------------------------------------------------------------
+- Workshop national EPSI, Master 2 (Bac+5), octobre 2026 [V]
+- Duree : sprint de 4 jours (lundi -> jeudi) [V p.2, p.7]
+- Vendredi = JURY LOCAL du campus : 10 min = 5 min presenter/demontrer
+  + 5 min d'echanges [V p.7, p.9]. Ce n'est PAS la finale nationale.
+- Finale nationale : ~3 semaines plus tard, diffusee en direct sur Teams
+  depuis le PC Hote, 5 min par equipe (voir PART 07) [V p.10]
+- Objet : une plateforme de paiement FICTIVE (fausse monnaie, faux clients)
+  qui doit se retablir SEULE apres une attaque. Zero-touch.
+- Phrase-simple : "un patient qu'on rend malade expres pour verifier
+  qu'il se soigne tout seul."
+- Contrat de reussite : attaque reelle -> detection autonome -> decision ->
+  action -> NOUVELLE TRANSACTION REUSSIE. Un conteneur qui redemarre seul
+  n'est PAS une preuve de reprise [V]
+- Sanction : intervention corrective humaine pendant le live = axe
+  "Demonstration en direct et remediation autonome" remis a 0/5 [V p.9]
+  (la sanction porte sur le resultat technique, pas sur le reste)
+- Pseudo-equipe : G<n>, present dans tous les noms de fichiers
+- Equipe : 5 apprenants (4 ou 6 selon effectifs du campus) ; une personne
+  peut porter plusieurs domaines, les decisions d'archi restent partagees [V p.4]
+
+-------------------------------------------------------------------------------
+ PART 02 — KEY::ARCH — MACHINES, RESEAU, STACK
+-------------------------------------------------------------------------------
+MACHINES (3) :
+- PC HOTE : 192.168.137.1, hotspot WiFi RESILIENCE-G<n> (reseau
+  192.168.137.0/24), Windows 10/11 + Docker Desktop WSL2, mini 4 coeurs
+  / 16 Go RAM / 50 Go SSD (confort : 32 Go, 6-8 coeurs, 100 Go) [V p.6] ;
+  porte toute la stack
+- PC ATTAQUANT : machine DISTINCTE, obligatoire (l'attaque doit partir
+  d'un poste separe), connecte uniquement au PA du groupe, aucun
+  composant defensif, 8 Go RAM de depart [V p.3, p.5, p.6]
+- PC IA : FACULTATIF, seulement si l'IA est hebergee sur machine dediee
+  [V]
+
+RESEAU : reseau interne hot-spot. [D] ne jamais dependre d'Internet le jour
+  J (R-14). ATTENTION [?] : le schema p.6 donne le PC Hote "connecte au WiFi
+  du campus" ET au PA : Internet existe, ce n'est pas une interdiction.
+RAM = filtre de tri : 16 Go -> Elastic Stack "non attendu" (charge memoire,
+  p.4), Wazuh sous arbitrage (voir KEY::CANDIDATES)
+
+STACK COMPLETE :
+- Front : React + Tailwind IMPOSE par le sujet pour le dashboard [V p.2, p.4] ;
+  DECISION UTILISATEUR D16 : dashboard/cockpit dans Ren'Py, sans React (risque assume)
+- Microservices conteneurises minimum : base de donnees, API metier,
+  service d'authentification, frontal web [V p.4]
+- API : backend maison, langage au choix Node.js, Python/FastAPI ou Go
+  [V p.4] (FastAPI recommande [D] : doc OpenAPI gratuite)
+- Auth : bibliotheque standard + code fin maison
+- Base de donnees
+- MOTEUR DE REMEDIATION : code maison, c'est l'objet du workshop
+- Observabilite : Prometheus / Grafana / Loki (cameras)
+- WAF + SIEM (ou fonction SOC dans Grafana, admise par le sujet) [V]
+- ML : detection d'anomalies (PyOD/IsolationForest recommande)
+- RAG : assistant Ollama + LangChain + base vectorielle, modele LOCAL
+  <= 8 Md parametres
+- Chaos engineering : injection de defaillances jeudi [V p.7] ; outil Pumba [D]
+- Secrets : SOPS d'abord, Vault si temps
+- Deploiement : Docker Compose + Ansible [V p.4] (K8s : non demande)
+
+PIEGES D'ARCHITECTURE :
+- l'assistant RAG n'est PAS le remediateur (2 composants distincts) [V]
+- le moteur de remediation est lui-meme une surface d'attaque
+- le dashboard alimente l'analyse d'incident : exigence explicite,
+  pas de la decoration
+
+-------------------------------------------------------------------------------
+ PART 03 — KEY::PILLAR — LES 5 PILIERS (TOUT OBLIGATOIRE, INTERCONNECTES)
+-------------------------------------------------------------------------------
+[DEV]   l'appli elle-meme (site, API, base) + le "medecin" (moteur de
+        remediation) + l'ecran de controle jury. Le SI de paiement est
+        a CONSTRUIRE : "vous devrez construire un SI de paiement fictif"
+        [V p.4] ; "bibliotheques, images et outils publics" autorises mais
+        aucun code de demarrage remis [V p.7]. La citation "aucune solution
+        de paiement existante" n'est PAS dans le PDF : retiree [?]
+        NUANCE [?ORAL] : voir PART 15
+[INFRA] conteneurs Docker + caméras partout (Prometheus/Grafana/Loki) ;
+        terrain des collegues infra ; etapes EX-03 a EX-05
+[IA]    DEUX choses distinctes :
+        (a) ML detection : apprend "normal/louche" (IsolationForest),
+            dataset maison, etape EX-07
+        (b) assistant RAG : repond aux questions sur VOS docs (corpus
+            maison = votre valeur ajoutee), etape EX-10
+        terrain du collegue IA
+[CYBER] vous qui attaquez (depuis le PC Attaquant, attaque REELLE pas
+        graphique) + barrieres (WAF, SIEM, secrets) ; etapes EX-06 et EX-09
+[GOV]   dossier : EBIOS, PCA/PRA, NIS2/DORA, criticite, cout de l'arret,
+        "qu'on ferait en vrai dans une banque". VOIE PARALLELE : demarre
+        des le debut, s'etoffe au fil des etapes, README ecrit en continu
+
+-------------------------------------------------------------------------------
+ PART 04 — KEY::REQ::REGISTRY — EXIGENCES (SYNTHESE DES ~75)
+-------------------------------------------------------------------------------
+Types : MUST / MUST-NOT / SHOULD / MAY. Methode : verifier
+REQ-xx avant chaque decision technique. Ancre = page PDF pour re-OCR.
+Full registry detaillee dans graphify v2.2 PART 05 (fils).
+Regroupements :
+- REQ-DEV-xxx : SI maison, endpoints /transactions, donnees fictives,
+  frontal web, dashboard avant/pendant/apres (React+Tailwind impose par
+  le sujet, mais D16 : fait dans Ren'Py)
+- REQ-INF-xxx : Docker, Ansible, Prometheus/Grafana/Loki, reseau hotspot
+  interne, pas de K8s
+- REQ-IA-xxx : detection ML branchée, assistant RAG local <= 8Md,
+  assistant != remediateur
+- REQ-CY-xxx : attaque reelle depuis poste distinct, WAF, SIEM ou SOC,
+  secrets proteges, PAS de donnees financieres reelles
+- REQ-GOV-xxx : EBIOS, PCA/PRA, NIS2/DORA, dossier PDF structure
+- REQ-DM-xxx : passage local 10 min (5 demo + 5 echanges), clip 60 s MAX en
+  sequence continue sans coupe masquant une action manuelle (titres et
+  sous-titres autorises) [V p.8], remediation zero-touch sanctionnee 0/5
+- REQ-TST : tests + documentation d'API + README dans Code.zip [V p.8]
+- REQ-PR-013 : tout integre doit etre verifie, maitrise et defendable
+  au jury ("test des 5 minutes")
+- REQ-LIVR-xxx : noms exacts Workshop2026-M2-G<n>-* (voir PART 05)
+
+-------------------------------------------------------------------------------
+ PART 05 — KEY::SPRINT — CHRONOLOGIE & LIVRABLES
+-------------------------------------------------------------------------------
+SUJET [V p.7] :
+LUN   : kick-off : consortiums, postes et reseau, interfaces, architecture,
+        matrice de risques, validation par les coachs
+MAR   : production, IaC, modeles IA : Docker Compose + Ansible,
+        microservices, ML, scripts Red Team, dossier NIS2/DORA
+MER   : integration, premiers essais : WAF/SIEM, detection AIOps,
+        remediation, dashboard, premiers tests de restauration
+JEU   : recette, chaos, rendus : injection de defaillances, tests, Clip
+        Chrono, GEL DU CODE A 17 h, remise des fichiers avant 23h59
+VEN   : JURY LOCAL : demo en direct, echanges, selection du consortium qui
+        represente le campus ; ne sert pas a poursuivre la production
+DERIVE [D] (notre plan) : MAR observabilite puis scaffold payment-api,
+  arbitrage RAM/SIEM, generation scenarios GLM en amont ; MER ML, Attack
+  Composer, RAG, WAF, et EX-08 PASSEE avant mercredi soir ; JEU Pumba,
+  scripts d'attaque GELES, repetitions EX-12, clip, rendus avant 17 h.
+
+LIVRABLES dans le dossier Workshop2026-M2-G<n> (noms exacts, p.8) :
+- Workshop2026-M2-G<n>-Dossier.pdf : 8 a 12 pages hors annexes, contribution
+  de chacun visible, details volumineux renvoyes au depot Git
+- Workshop2026-M2-G<n>-Pres.pptx : support court devant des professionnels
+- Workshop2026-M2-G<n>-VidChrono.mp4 : 60 s MAX, sequence continue (attaque
+  depuis le PC Attaquant, anomalie, reaction, service retabli), sans coupe
+  masquant une action manuelle
+- Workshop2026-M2-G<n>-Code.zip : sources, configs infra, scripts d'attaque
+  et de ML, tests, doc d'API, README de deploiement ; AUCUN secret en clair
+  (R-15)
+- Demonstrateur : presente sur vos machines (7.5), ce n'est pas un fichier
+
+GRILLES (voir PART 07)
+
+-------------------------------------------------------------------------------
+ PART 06 — KEY::BACKLOG — 6 EPICs / 36 STORIES (SYNTHESE)
+-------------------------------------------------------------------------------
+EPIC A DEV      : SI paiement maison, moteur remediation, API, cockpit dans Ren'Py (D16)
+EPIC B INFRA    : labo, compose, observabilite, Ansible (collegues infra)
+EPIC C IA       : dataset, IsolationForest, branchement alerte ; corpus RAG,
+                  Ollama+LangChain (collegue IA)
+EPIC D CYBER    : arsenal d'attaque, Attack Composer D1bis (votre lane),
+                  WAF, SIEM/SOC, secrets SOPS
+EPIC E GOV      : EBIOS, PCA/PRA, NIS2/DORA, README continu
+EPIC F INTEGRATION/RENDUS : repetitions, clip, dossier, PPTX
+Priorisation derivee des baremes : la chaine attaque->detection->reprise
+prime (5 pts local / 25 pts national).
+Details story par story : graphify v2.2 PART 06.
+
+-------------------------------------------------------------------------------
+ PART 07 — KEY::EVAL — GRILLES
+-------------------------------------------------------------------------------
+NOTE LOCALE = (note individuelle de suivi + 2 x note collective du jury) / 3
+  [V p.9]
+SUIVI INDIVIDUEL (20 pts, coef 1) : 5 criteres x 4 pts : leadership et
+  posture pro ; expertise du/des domaines assumes ; resolution de problemes
+  et adaptation ; cooperation entre specialites ; rigueur, tracabilite,
+  documentation [V p.9]
+JURY LOCAL (20 pts, coef 2) [V p.9] :
+- 5 pts : demonstration en direct et remediation autonome
+- 4 pts : expertise technique et coherence des cinq domaines
+- 4 pts : Clip Chrono et dashboard
+- 4 pts : gouvernance, NIS2/DORA et qualite du pitch
+- 3 pts : dossier technique et reponses aux questions
+FINALE NATIONALE (70 pts, p.10) : pitch strategique 10 ; Clip Chrono 15 ;
+  demonstration en direct 25 ; expertise technique et architecture 10 ;
+  gouvernance et conformite 10. Passage 5 min : 1 min demarche avec
+  introduction individuelle EN ANGLAIS, 1 min clip, 3 min attaque + reprise
+  en direct ; diffusion Teams depuis le PC Hote [V p.10]
+SCRUTIN NATIONAL CROISE : 2 jurys locaux par campus (20 jurys) ; chaque jury
+  classe 1 a 10 ; points 12/10/8/6/4/2/1/0/0/0 = capital 43 pts [V p.10]
+[?] v3.0 portait des libelles de grille locale issus du PPTX, qui ne
+  correspondent pas au PDF : remplaces ci-dessus.
+
+-------------------------------------------------------------------------------
+ PART 08 — KEY::RISK — R-01 A R-18 (GRADUES)
+-------------------------------------------------------------------------------
+R-01 [FATAL] intervention humaine pendant le live -> 0/5 axe remediation
+R-02..R-13 : (registre v2.2) dont : demo qui plante, RAM epuisee,
+             clip coupe, secrets leaks, dataset ML non representatif
+R-14 [FATAL] dependance a l'API GLM pendant le live du vendredi
+     -> contre-mesure : generation mardi/mercredi AMONT, revue humaine
+        systematique, arsenal GELE dans Git, jeudi = replay de scripts
+        geles uniquement
+R-15 [FATAL] cle API GLM en clair dans Code.zip -> Vault/SOPS obligatoires
+R-16 adopter un outil tres etoile sans savoir l'expliquer (echec axe 5)
+     -> contre-mesure : REQ-PR-013, test 5 minutes au jury, celui qui
+        copie documente dans le README
+R-17 empilement fancy hors de controle RAM (16 Go)
+R-18 derive Ren'Py : PIERRE ANGULAIRE et premier chantier (D14), timebox 30
+     min ou moins en reutilisant l'existant ; arret au parcours minimal a 45
+     min ; integration finale seulement sur la chaine reelle ; un seul
+     mini-jeu (6 ecrans + HUD), celui qui code le defend en Q&A
+
+-------------------------------------------------------------------------------
+ PART 09 — KEY::RELATIONS — MATRICE DE DEPENDANCES (EXTRAIT)
+-------------------------------------------------------------------------------
+ARCH -> {DEV, INFRA, CYBER}        (le labo porte tout)
+DEV(payment-api) -> INFRA(cameras) (l'API doit exister pour etre filmee)
+INFRA(cameras) -> IA(ML)           (le ML consomme les metriques)
+IA(ML) -> DEV(remediation)         (l'alerte declenche l'action)
+CYBER(arsenal) -> IA(ML)           (les attaques genèrent le dataset)
+CYBER(arsenal) -> IA(RAG)          (les incidents nourrissent le corpus)
+GOV <-> tout                     (voie parallele, chaque choix = 1 phrase)
+RENPY -> {DEV, CYBER, IA}          (pierre angulaire : interface de la demo ; integration finale apres la chaine reelle)
+FULL matrix : v2.2 PART 14.
+
+-------------------------------------------------------------------------------
+ PART 10 — KEY::4C — LA REGLE D'AGENCEMENT (REPOSER LA QUESTION POUR
+                   CHAQUE BRIQUE, DANS CET ORDRE)
+-------------------------------------------------------------------------------
+1) CODE (maison) : SI paiement (le sujet demande de le construire, p.4),
+   moteur de remediation, chaine detection->decision->action. LE COEUR NOTE.
+2) ADAPTE (retro-ingenierie de DESIGN) : flux de paiement (autorisation,
+   capture, idempotence, machine a etats des transactions), modele de
+   donnees, codes d'erreur API, webhooks. On etudie, on recode simplifie
+   (3-5 endpoints au lieu de 50).
+3) RECUPERE (outil entier configure) : Prometheus, Grafana, Loki, WAF,
+   SIEM, SOPS, Pumba, PyOD, Ollama, mitmproxy. On ne code pas un monitoring.
+4) COPIE-COLLE (config depuis exemples officiels) : compose files Grafana/
+   Loki/Prometheus, config promtail, dashboards communautaires importables,
+   compose Wazuh single-node, roles Ansible Galaxy comme patrons.
+
+Test de demarcation :
+- n'existe nulle part ailleurs -> CODE (verifier d'abord que le sujet l'exige)
+- existe avec 10 000 etoiles -> RECUPERE
+- c'est un YAML -> COPIE-COLLE
+Fondement reglementaire : le sujet autorise le reemploi de
+"bibliotheques, images et outils publics" [V p.7] ; seul le code de
+demarrage construit pour le workshop n'est pas remis ; contrepartie =
+REQ-PR-013 (maitrise et defense devant le jury).
+
+NUANCE [?ORAL] sur le niveau CODE : voir PART 15 (le jury aurait dit
+a l'oreille qu'un serveur existant reutilise a but de recherche serait
+tolere). Strategie bimorphique en attendant trace ecrite.
+
+-------------------------------------------------------------------------------
+ PART 11 — KEY::CANDIDATES — AUTO-CHECK GITHUB (2026-10-19, NON REJOUE v3.1)
+ etoiles = chiffres volatils : a re-verifier avant toute integration (P6)
+-------------------------------------------------------------------------------
+[V] mitmproxy     ~40k etoiles  OUTIL DE DISSECTION (proxy HTTPS interactif,
+                                capture + replay ; debug de la chaine ;
+                                generation dataset ML par replay de trafic)
+[V] Hyperswitch   ~15k etoiles  Apache 2.0, orchestrateur Rust moderne
+                                -> MODELE ANATOMIQUE (design, pas code)
+[V] Kill Bill     ~1k+ etoiles Apache 2.0, en prod depuis 2010, compose
+                                officiel, REST complet, webhooks
+                                -> MODELE ANATOMIQUE (classique)
+[V] PyOD          ~10k etoiles  arXiv:2412.12154, 59M+ downloads PyPI,
+                                45+ algo -> RECUPERE, IsolationForest
+                                (KISS : pas de deep learning, 4 jours,
+                                16 Go RAM)
+[V] Pumba         ~1.2k etoiles chaos Docker : kill/stop/pause, netem
+                                (delai, perte), stress CPU/memoire
+                                -> jeudi + generation d'incidents ML
+[V] Wazuh         ~13k etoiles  stack Docker single-node officielle,
+                                ~8 Go RAM recommandes -> ARBITRAGE MARDI :
+                                si 16 Go -> fonction SOC dans Grafana/Loki
+                                (admise par le sujet), si 32 Go -> Wazuh
+[X] Firefly III   24.9k etoiles POPULAIRE DU MAUVAIS DOMAINE : bookkeeping
+                                personnel, pas de moteur de transaction
+                                temps reel a attaquer -> NON
+[X] OpenTelemetry Operator ~3k  cible Kubernetes -> HORS SPEC (Docker
+                                Compose impose) -> NON
+[X] Kong Operator               idem K8s -> NON
+[A VERIFIER au moment de l'installation (point d'entree P6) :]
+  FastAPI, LangChain+Chroma, SOPS, locust, ModSecurity,
+  Ren'Py libs (PART 16)
+
+PROTOCOLE DE SELECTION (7 etapes, KISS) :
+1 licence Apache/MIT -> 2 sante GitHub (etoiles, commits recents, issues)
+-> 3 empreinte RAM sous controle -> 4 passe le test 5-minutes-jury ->
+5 documente dans README par celui qui l'integre -> 6 licence citee dans
+le dossier -> 7 aucune cle/donnee embarquee.
+
+-------------------------------------------------------------------------------
+ PART 12 — KEY::PLAN — LES 13 ETAPES (ORDRE DES DEPENDANCES)
+                    + ASSIGNATION EQUIPE + VOIE PARALLELE
+-------------------------------------------------------------------------------
+"Reflechis pas en jours, donne les etapes" -> ordre logique, chaque
+etape a un test "c'est fini quand".
+
+EX-01 DESSINER [tous]
+     Boites et fleches papier : navigateur, API, base, cameras,
+     detecteur, reparateur, attaquant.
+     FINI QUAND : le coach valide le schema.
+
+EX-02 MONTER LE LABO [infra]
+     Hotspot RESILIENCE-G<n>, Docker sur PC Hote, PC Attaquant connecte.
+     FINI QUAND : les deux PC se pinguent et Docker tourne.
+
+EX-03 POSER LES CAMERAS [infra]
+     Prometheus + Grafana + Loki via compose copie des configs
+     officielles (~1 h). Les cameras AVANT l'appli : elles alimentent
+     l'analyse d'incident (exigence, pas decoration).
+     FINI QUAND : Grafana affiche des graphs dans le navigateur.
+
+EX-04 APPLI MINIMALE [dev]
+     UNE route "payer" + une base. Rien d'autre.
+     FINI QUAND : une fausse transaction reussit depuis le navigateur.
+     (Strategie bimorphique possible : mini-coeur maison 3 h + option
+      serveur reutilise si trace ecrite arrive -> PART 15)
+
+EX-05 BRANCHER LES CAMERAS [infra+dev]
+     Exporters, logs.
+     FINI QUAND : la transaction EX-04 visible dans Grafana ET Loki.
+
+EX-06 ATTAQUE N-1 [cyber, votre lane]
+     La plus simple : bombarder l'API de requetes depuis le PC Attaquant.
+     FINI QUAND : l'appli rame et les graphs bougent visiblement.
+
+EX-07 ENTRAINER LE DETECTEUR [IA]
+     Dataset trafic normal + attaque, IsolationForest (PyOD).
+     FINI QUAND : on rejoue l'attaque et le modele declenche l'alarme
+     tout seul.
+
+EX-08 CONSTRUIRE LE REPARATEUR [tous — COEUR DU PROJET]
+     Recoit l'alerte, execute l'action (redemarrer, purger, bloquer),
+     verifie que ca marche.
+     FINI QUAND : attaque -> alarme -> reparation -> NOUVELLE transaction
+     reussit, sans toucher a rien.
+     *** JALON CENTRAL : LA DEMO MINIMALE COMPLETE. Le jour ou EX-08
+     passe la 1re fois, la moitie de la note est acquise. ***
+
+EX-09 AJOUTER LES BARRIERES [cyber+infra]
+     WAF devant l'API, SIEM (ou corrélation Grafana), secrets SOPS.
+     FINI QUAND : le WAF bloque et trace, zero secret en clair.
+
+EX-10 L'ASSISTANT [IA]
+     Ollama + LangChain + corpus maison.
+     FINI QUAND : repond correctement a "que faire en cas d'attaque ?"
+     en citant VOS procedures.
+
+EX-11 DASHBOARD JURY [dev, votre lane]
+     Dans Ren'Py (D16 ; le sujet impose React + Tailwind) : vues avant/pendant/
+     apres, timeline de reprise,
+     vue Red Crew (Attack Composer).
+     FINI QUAND : un etranger comprend la demo juste en regardant
+     l'ecran.
+
+EX-12 FIABILISER [tous]
+     Repeter la demo en boucle, casser des trucs avec Pumba,
+     GEler les scripts d'attaque.
+     FINI QUAND : la demo passe 10 fois de suite sans intervention.
+
+EX-13 LES RENDUS [GOV+dev]
+     Clip 60 s max en sequence continue, dossier PDF, support PPTX, archive
+     code.
+     FINI QUAND : fichiers aux noms exacts Workshop2026-M2-G<n>-*, code gele
+     a 17 h jeudi, remise avant 23h59.
+
+VOIE PARALLELE — DOSSIER GOUVERNANCE [GOV, toute la duree] :
+EBIOS, PCA/PRA, NIS2/DORA demarres des le debut, etofes au fil des
+etapes : chaque choix technique EX-04..EX-09 devient une phrase dans
+le dossier. README ecrit en continu, jamais a la fin.
+
+PIERRE ANGULAIRE — REN'PY "DOUBLE FACE" (PART 17) :
+premier chantier, contre le simulateur, timebox 30 min ou moins (R-18, D14) ;
+integration finale apres la chaine reelle.
+
+ASSIGNATION DECLAREE :
+- collegue IA        -> EPIC C (EX-07, EX-10)
+- collegues infra    -> EPIC B (EX-02, EX-03, EX-05, part EX-09)
+- votre lane (dev/cyber) -> EPIC A + EPIC D, Attack Composer (EX-06,
+  EX-08 partage avec tous, EX-11, EX-12)
+- EX-08 est le terrain commun : tout le monde doit savoir l'expliquer
+
+-------------------------------------------------------------------------------
+ PART 13 — KEY::COMPOSER — ATTACK COMPOSER (GLM)
+-------------------------------------------------------------------------------
+Definition : orchestrateur de GENERATION de scenarios d'attaque
+(VOCABULAIRE : dire "orchestrateur de generation de scenarios",
+PAS "simulateur d'attaque" dans le dossier).
+Interface : vue "Red Crew" = terminal du jeu Ren'Py (D16), sans cout
+supplementaire.
+Flow : selecteur niveau 1-5 -> prompt GLM -> script python/bash genere ->
+REVUE HUMAINE -> arsenal versionne dans Git -> execution REELLE depuis
+le PC Attaquant -> effet observable sur le SI.
+Timing : generation mardi-mercredi AMONT ; jeudi = replay de scripts
+geles UNIQUEMENT (R-14 : jamais de dependance GLM le vendredi).
+Conformite : l'IA generative est explicitement autorisee pour produire
+du code et des jeux de tests [V] ; l'attaque reste reelle, pas une
+simulation graphique [V].
+GLM ne remplace PAS Ollama+LangChain : l'assistant RAG reste un modele
+local <= 8 Md.
+
+-------------------------------------------------------------------------------
+ PART 14 — KEY::PERSONA — 4 PERSONAS
+-------------------------------------------------------------------------------
+1. JURY       avant/pendant/apres -> dashboard (vues 3 temps), clip chrono,
+              Q&A sur le code
+2. OPERATEUR  cible de l'assistant RAG, doit comprendre l'incident sans
+              agir manuellement (zero-touch)
+3. COMMANDITAIRE / direction -> arbitrages, PCA/PRA, NIS2/DORA (GOV)
+4. RED CREW   vous, via la vue Attack Composer du dashboard
+
+-------------------------------------------------------------------------------
+ PART 15 — KEY::ORAL — INFO A L'OREILLE + STRATEGIE BIMORPHIQUE
+-------------------------------------------------------------------------------
+INFO [?ORAL, statut non contractuel] : le jury aurait indique que
+reutiliser un serveur de paiement existant serait tolere si la demarche
+est presentee "a but de recherche". Tension avec "vous devrez construire
+un SI de paiement fictif" (p.4), mais le PDF autorise les outils publics
+(p.7) : la contradiction est plus faible que notee en v3.0.
+Une info a l'oreille est exploitable en STRATEGIE mais INVALIDE en
+GARANTIE : si un autre membre du jury applique le texte ecrit vendredi,
+on ne peut pas invoquer un murmure.
+3 ACTIONS :
+1. SECURISER UNE TRACE : reformuler la question au coach devant temoins
+   ou demander un mail : "un serveur de paiement open source peut-il
+   servir de coeur metier si la demarche est documentee comme
+   recherche ?"
+2. RECALIBRER L'ENJEU : aucun serveur existant (Kill Bill, Hyperswitch)
+   ne contient ce qui est note — pas de ML branche, pas de moteur de
+   remediation, pas de chaine zero-touch, pas de WAF/SIEM calés sur la
+   reprise. La reutilisation eventuelle = coeur metier seulement
+   (API + DB) = EX-04 = ~20 % du travail. La chaine complete se
+   construit dans tous les cas.
+3. JOUER BIMORPHIQUE JUSQU'A MARDI :
+   - branche A : mini-coeur maison (une route, ~3 h) -> toujours valide
+   - branche B : serveur reutilise SI la trace ecrite arrive
+   Les deux convergent a EX-05 : les cameras se soucient pas de ce
+   qu'elles filment.
+
+-------------------------------------------------------------------------------
+ PART 16 — KEY::RENPY — FAISABILITE + LIBS + METRIQUES
+-------------------------------------------------------------------------------
+MOTEUR [V 2026-10-19] :
+- open source, Python/Cython, ~6.9k etoiles, gratuit meme usage commercial
+- build DESKTOP : network + requests FONCTIONNENT
+- build NAVIGATEUR (WebAssembly) : reseau NON supporte (sockets et
+  requests bloqués par le sandbox navigateur) ; contournement officiel
+  renpy.fetch en maturation (headers en ajout)
+- CONSEQUENCE : Ren'Py = application desktop sur le PC Hote, jamais en
+  web build. Sans impact demo : l'ecran du jury est le PC Hote.
+
+INTEGRATION DE LIBS [V, doc officielle + communaute] :
+- Python PUR : charge sans modification. Installation officielle :
+  pip install --target game/python-packages <lib> puis import dans
+  un bloc init python
+- Dossiers dedies : game/libs et game/mods pour libs tierces et mods
+- LIMITATION : extensions C (numpy, pandas, matplotlib) ne fonctionnent
+  PAS sans recompiler le moteur -> si calcul scientifique requis :
+  script Python SEPARE qui calcule, export JSON, Ren'Py lit le JSON
+  et l'affiche via un screen
+
+METRIQUES — DISTINGUER 2 CAS :
+(a) telemetrie joueur (dans le jeu) : RIEN de built-in ; pratique
+    standard = requete HTTP vers moteur analytics ; consentement
+    utilisateur ; pas critique pour le workshop
+(b) dashboard/HUD in-game : Screen Language natif SUFFIT, pas de lib
+    externe ; pour les metriques de la plateforme : le jeu appelle
+    l'API de sante / lit le JSON exporte par le script Python
+
+OUTILS EDITEUR (hors jeu) :
+- Ren'Py Analytics (extension VS Code, MIT) : flow graph des labels,
+  labels inaccessibles, stats par fichier/character, export MD/JSON
+- GenPy : visualisation structure/branches (early dev)
+- renpy-utility-lib : flags, tags, logs in-game
+- renpy-tools : lexer/parser complet des scripts (Lark)
+A VERIFIER en installant : tester import dans la console Ren'Py.
+
+CONFORMITE : le sujet impose React + Tailwind pour le dashboard de
+supervision [V p.2, p.4]. DECISION UTILISATEUR D16 : tout le cockpit est fait
+dans Ren'Py, sans React. RISQUE ASSUME : non-conformite a l'exigence et perte
+possible sur l'axe "Clip Chrono et dashboard" (4 pts local, 15 pts national).
+ATTENTION [?] : le SI doit AUSSI comporter un frontal web (p.4) : Ren'Py
+(desktop) ne peut pas en tenir lieu ; le frontal web de paiement reste
+utilisable sans le jeu.
+
+GARDE-FOUS : R-18 (timebox 30 min ou moins, premier chantier, art N0
+typographique par defaut, assets libres reutilises en option N1 ; celui qui
+code le defend en Q&A ; desktop uniquement).
+
+-------------------------------------------------------------------------------
+ PART 17 — KEY::DOUBLEFACE — CONCEPT "ALPHA : DOUBLE FACE" [D]
+-------------------------------------------------------------------------------
+PRINCIPE : tout jouer en Ren'Py a condition que chaque choix du jeu
+declenche une VRAIE action sur la VRAIE plateforme. Le jeu raconte,
+la chaine travaille en dessous.
+
+SCENE 0 — L'ARRIVEE : hall de la Banque Alpha (fictive). Trois portes :
+le capuchon (hacker), le badge (SOC) et l'ombre (client, role offert au
+jury local). Le joueur choisit sa route. Detail : jeu v2.1.
+
+ROUTE HACKER (tourne sur le PC ATTAQUANT — l'attaque doit partir
+d'un poste distinct [V]) :
+- Recon : observer -> VRAI scan passif sur la cible autorisee
+- L'arsenal : menu de 3 niveaux (sous-ensemble des 5 niveaux de l'Attack
+  Composer, etiquettes metier) ; chaque item lance un script gele
+- Le coup : terminal style a l'ecran, trafic REEL ; sur le second
+  ecran (cockpit du jeu) les courbes montent pour de vrai
+- La riposte : le jeu interroge l'API de sante en boucle ; quand la
+  plateforme s'est auto-reparee, le hacker "voit" la porte se
+  refermer
+
+ROUTE LUMINEUSE (operateur SOC, PC Hote) :
+- L'alerte : l'anomalie ML s'affiche ; le joueur consulte
+  l'assistant RAG -> VRAIE requete Ollama, vraie reponse affichee
+- Le choix pedagogique : "intervenir a la main" (le jeu REFUSE et
+  explique la sanction 0/5 [V]) OU "faire confiance a l'automatisation"
+  (seule voie)
+- La preuve : le joueur declenche lui-meme une nouvelle transaction,
+  qui reussit
+
+FIN COMMUNE — "ZERO-TOUCH" : la banque n'a pas eu besoin d'un humain.
+
+CONFORMITE :
+- aucune simulation graphique [V] : si le script echoue, le jeu
+  l'affiche tel quel, pas de faux succes
+- le cockpit (dashboard) est fait dans Ren'Py (D16) alors que le sujet impose
+  React + Tailwind [V p.4] : risque assume ;
+  Ren'Py = ecran narration + telecommande + cockpit
+- l'operateur ne repare JAMAIS : zero-touch
+- clip Chrono : captures reelles continues ; Ren'Py fournit juste les
+  titres de sequences (autorises)
+BONUS PITCH : rejouable — vendredi, si le jury veut revoir l'autre
+face, relancer l'autre route en 2 min.
+FINALE NATIONALE : le jury est a distance (Teams) : le role client est
+joue par l'equipe ; demo limitee a 3 min (attaque + reprise).
+
+-------------------------------------------------------------------------------
+ PART 18 — KEY::REPO — ARBORESCENCE DU DEPOT
+-------------------------------------------------------------------------------
+Workshop2026-M2-G<n>/
+  README.md                <- redige en continu (celui qui copie, documente)
+  docker-compose.yml       <- COPIE-COLLE adapte (reseaux internes)
+  services/
+    payment-api/           <- CODE (FastAPI, doc OpenAPI gratuite)
+    auth/                  <- RECUPERE (lib standard) + CODE fin
+    front/                 <- CODE vues, RECUPERE composants
+    remediation/           <- CODE (le muscle)
+    detection/             <- RECUPERE PyOD + CODE du branchement
+  infra/
+    prometheus/ loki/ grafana/   <- COPIE-COLLE configs officielles
+    waf/ siem/             <- RECUPERE (arbitrage mardi)
+  attack/
+    composer/              <- CODE (Attack Composer GLM)
+    arsenal/               <- CODE genere par GLM, revu, GELE
+  assistant/ (corpus/)     <- config Ollama/LangChain + VOS documents
+  ml/ (data/, models/)     <- dataset versionne
+  ansible/                 <- CODE mince sur patrons Galaxy
+  renpy/                   <- [PIERRE ANGULAIRE, R-18] Double Face (desktop build)
+  docs/ (ebios/, pca-pra/, api/) <- GOV + documentation d'API (p.8)
+  tests/                   <- tests exiges dans Code.zip (p.8)
+
+-------------------------------------------------------------------------------
+ PART 19 — KEY::ATTACK::OPTIONS [D] + CORPUS RAG [D]
+-------------------------------------------------------------------------------
+OPTIONS D'ATTAQUE (analyse derivee, non contractuelle) :
+- RECOMMANDE principal : DoS controle (saturation de ressources)
+  -> simple, visible sur les graphs, dataset ML net
+- secondaire : injection (SQL/HTTP) -> montre le WAF
+- ecartes : tout ce qui casse durablement la demo, tout ce qui
+  exige une intervention humaine pour retablir
+
+CORPUS RAG DE L'ASSISTANT (spec derivee) :
+- vos procedures de remediation, votre runbook d'incident,
+  la doc d'architecture, les scenarios d'attaque testes,
+  l'EBIOS/PCA-PRA. Interdit : donnees reelles, cles, contenus
+  sous licence incompatibles.
+
+-------------------------------------------------------------------------------
+ PART 20 — KEY::LOOP — BOUCLE RETROSCOPIQUE RE-OCR (PROTOCOLE 5 ETAPES)
+-------------------------------------------------------------------------------
+1. identifier la KEY concernee
+2. re-OCR de l'ancre page (voir point d'entree)
+3. croiser avec le PPTX (2e source)
+4. si divergence -> marquer [?] dans le graphify
+5. incrementer la version du fichier
+
+STATUT DE VERIFICATION (v3.1, PDF relu en entier le 2026-10-19) :
+- source unique verifiee : PDF sujet ; PPTX absent de Docs/
+- divergences documentees :
+  [?] intro du 8.2 (p.9) repete mot pour mot les criteres du 8.1 (copie-colle
+      du sujet) ; la grille p.9 fait foi
+  [RESOLU] chronologie p.7 : l'ordre LUN->VEN est correct dans le PDF
+  [?] glossaire p.12 : definitions tronquees dans le PDF lui-meme
+  [?] titre de 7.2 "dossier technique et fonctionnel" pour le fichier Pres.pptx
+      (incoherence du sujet, noms de fichiers p.8 inchanges)
+  [?ORAL] reutilisation serveur a but recherche (PART 15)
+
+POINTS D'ENTREE HAUT RISQUE (re-OCR AVANT de) :
+P1 p.9-10 -> avant toute preparation de soutenance (grille locale p.9,
+           nationale 70 pts + scrutin p.10)
+P2 p.8  -> avant l'assemblage des livrables (noms exacts)
+P3 p.3  -> avant la conception de la demo (conditions de "resolu")
+P4 p.5 (3.4), p.6, p.11 (9) -> avant tout test d'attaque (perimetre, postes)
+P5 p.5  -> avant le branchement IA/detection
+P6 GitHub -> avant toute integration d'un candidat (sante repo :
+           etoiles, commits recents, issues) — voir PART 11
+P7 COACH -> avant de trancher la branche bimorphique (trace ecrite
+           sur la reutilisation serveur)
+
+-------------------------------------------------------------------------------
+ PART 21 — KEY::DECISIONS — JOURNAL + NEXT STEPS
+-------------------------------------------------------------------------------
+DECISIONS ACTEES (conversation du 2026-10-19) :
+D1  regle 4C actee pour l'agencement (PART 10)
+D2  Kill Bill / Hyperswitch = modele anatomique UNIQUEMENT (design
+    etudie via mitmproxy, jamais de code livre comme paiement)
+D3  candidats retenus : PyOD/IsolationForest, Pumba, mitmproxy,
+    SOPS ; Wazuh sous arbitrage RAM mardi ; Firefly III et tout
+    operateur K8s ecartes
+D4  plan 13 etapes en ordre de dependances acte (EX-08 = jalon)
+D5  Attack Composer GLM : generation amont, revue humaine, arsenal
+    gele, jamais en dependance vendredi (R-14)
+D6  info oreille traitee en strategie bimorphique jusqu'a trace
+    ecrite (P7)
+D7  Ren'Py autorise (statut revu en D14) : desktop only, interface client
+    narrative (D16 : et cockpit ; le dashboard React impose est ecarte)
+D8  concept "Double Face" acte en spec [D] : deux routes, choix ->
+    actions reelles, timebox R-18
+D9  metriques : dashboard HUD via Screen Language natif ; calculs
+    lourds -> script Python separe + pont JSON ; libs Python pur
+    via pip --target game/python-packages
+D10 Dossier GOV en voie parallele des le debut ; README en continu
+D11 (v3.1) grille locale = celle du PDF p.9 ; vendredi = jury local ; finale
+    nationale a part (3 semaines apres, 5 min, Teams)
+D12 (v3.1) timebox Ren'Py 2 h (v2.0) : remplacee par D14
+D13 (v3.1) frontal web de paiement obligatoire en plus du jeu (p.4)
+D14 (v3.1) Ren'Py = PIERRE ANGULAIRE (sans lui, pas d'interface), premier
+    chantier, timebox 30 min ou moins ; integration finale sur la chaine reelle
+    (utilisateur, 2026-10-19)
+D15 (v3.1) mentalite : reutiliser d'abord (GitHub, GUI, assets, outils),
+    coder en dernier ; carte de recherche dans _bmad-output
+D16 (v3.1) dashboard et cockpit entierement dans Ren'Py, SANS React (utilisateur,
+    2026-10-19). RISQUE ASSUME : le sujet impose React + Tailwind (p.2, p.4) ;
+    perte possible sur l'axe "Clip Chrono et dashboard" (p.9, p.10)
+D17 (v3.1) le cockpit devient une SALLE DE CONTROLE unifiee projetee sur le PC Hote
+    (3 colonnes : capuchon, plateforme, badge) ; score d'anomalie en direct et
+    trafic etiquete pour le collegue IA ; roles verrouilles par poste ; evenements
+    d'attaque declares par le poste attaquant (jamais a la place de l'alerte)
+    (utilisateur, 2026-10-19)
+D18 (v3.1) poste SOC refondu en 3 etapes (comprendre, verifier, decider) ; champ
+    "recommandation IA" fourni par le detecteur du collegue dans l'alerte :
+    INFORMATIF (un humain ne l'execute jamais), le moteur la valide contre une
+    liste blanche d'actions ; l'assistant RAG reste distinct (sujet p.5)
+    (utilisateur, recommandation d'un collegue, 2026-10-19)
+D19 (v3.1) flux bloques (WAF/SIEM) affiches dans la salle de controle ; elements
+    cles mis en valeur ; STOP fiable (arret de l'outil ET de ses enfants, Linux et
+    Windows) ; chaque type d'attaque lance puis arrete par test ; 4e type =
+    injection applicative (PART 19) qui montre le WAF sans degrader le service
+    (utilisateur, 2026-10-19)
+D20 (v3.1) audit des manques : conteneurs et authentification distincte, /metrics et
+    journaux JSON, actions du moteur sous acces restreint (proxy Docker ou
+    playbooks Ansible), matrice attaque/remediation, chaos, garde-fou de
+    perimetre, donnees reelles et corpus pour l'IA, livraison (Code.zip, clip,
+    build Windows, fiches de defense), remise a zero ; voir analyse-manques.md
+    (utilisateur, 2026-10-19)
+
+NEXT STEPS (dans l'ordre) :
+N1 deriver le PRD interactif depuis les EPICs (PART 06) en
+   integrant Attack Composer + solutions eprouvees + concept
+   Ren'Py en pierre angulaire (D14)
+N2 plan d'equipe : assigner les EX aux lanes
+N3 maquettes : schema boites/fleches (EX-01) + squelette repo
+N4 P7 : demander la trace ecrite au coach (reutilisation serveur)
+N5 mardi : arbitrage SIEM (RAM) + debut generation scenarios GLM
+
+-------------------------------------------------------------------------------
+ PART 22 — KEY::ALIGN — ECARTS CORRIGES v3.0 -> v3.1 (contre le PDF sujet)
+-------------------------------------------------------------------------------
+1 grille locale p.9 : libelles v3.0 faux (PPTX) -> libelles du PDF
+2 formule de la note locale : renvoi a un fichier absent -> ecrite (PART 07)
+3 vendredi = jury local (10 min = 5+5), pas soutenance nationale ; finale
+  nationale decrite (5 min, anglais, Teams, scrutin 43 pts detaille)
+4 chronologie p.7 : le "desordre" signale n'existe pas dans le PDF
+5 citation "aucune solution de paiement existante" : absente du PDF ; le
+  sujet dit "construire" et autorise les outils publics -> PART 03/10/15
+6 frontal web exige dans le SI (p.4) : Ren'Py ne peut pas le remplacer
+7 gel du code jeudi 17 h + remise avant 23h59 ajoutes ; tests, doc d'API
+  exiges dans Code.zip ; clip : "sans coupe masquant une action manuelle"
+8 Elastic "exclu" -> "non attendu" ; Pumba, FastAPI = choix [D], pas sujet
+9 ancres de pages : grille nationale p.10 (pas p.9) ; perimetre d'attaque
+  p.5 et p.11 (pas p.6)
+10 timebox Ren'Py 3-4 h -> 2 h ; menu niveaux 1-5 -> 3 (jeu) ; 3 portes
+11 "[V] 2 sources" retire : PPTX absent ; etoiles GitHub non rejouees
+12 coquilles : expris, mobilisme, GELLE, scrutin croix, initer
+13 (D14) Ren'Py : "bonus conditionnel, 2 h, apres EX-08" -> pierre angulaire,
+   premier chantier, 30 min ou moins (decision utilisateur)
+14 (D16) dashboard React + Tailwind du sujet -> cockpit dans Ren'Py, sans React
+   (decision utilisateur, risque assume)
+
+===============================================================================
+ FIN GRAPHIFY v3.1 — source : decomposition sujet (PDF) + 8 iterations
+ conversationnelles (retro-ingenierie, GLM, personas, candidats GitHub,
+ plan 13 etapes, info orale, Ren'Py, libs/metriques). Rien perdu :
+ chaque element des versions 2.0/2.1/2.2/addendum 2.3 est incorpore
+ ci-dessus ou pointe explicitement vers le fichier anterieur.
+===============================================================================

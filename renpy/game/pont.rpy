@@ -59,6 +59,7 @@ init -10 python:
             self.vague = None          # etat du compteur de participation (jauge, decompte)
             self.qr_vague = None       # chemin relatif du QR telecharge, ou None
             self.repetition = dict(passes=0, ok=0, en_cours=False)  # EX-12 : 10 passages sans intervention
+            self.duel = None           # etat du duel autonome (attaquant/defenseur, raisons)
 
     ETAT = Etat()
 

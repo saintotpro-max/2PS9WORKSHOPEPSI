@@ -1,0 +1,208 @@
+[[entry]]
+id = 1
+type = "story"
+title = "Contrats d'interface pour les collègues"
+description = "Rédige les contrats OpenAPI de santé, transactions, alerte, question à l'assistant et métriques, et les transmet."
+verify = "Un collègue implémente un contrat sans lire le code."
+covers = ["FR-1"]
+after = []
+hitl = true
+risk = "low"
+
+[[entry]]
+id = 2
+type = "story"
+title = "API de transactions et base (tracer)"
+description = "Crée l'API de transactions authentifiée, la base et le service d'authentification, de bout en bout."
+verify = "Une transaction valide est enregistrée et renvoie son id ; sans jeton elle est refusée ; les journaux sont structurés et lisibles."
+covers = ["FR-5"]
+after = []
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 3
+type = "story"
+title = "Frontal web de paiement"
+description = "Ajoute le frontal web qui permet de payer dans un navigateur."
+verify = "Un paiement réussit dans le navigateur, jeu fermé."
+covers = ["FR-6"]
+after = [2]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 4
+type = "story"
+title = "Santé honnête"
+description = "Expose une santé qui n'est saine que si une transaction réussit."
+verify = "Après un arrêt de l'API, la santé reste non saine jusqu'à une transaction réussie."
+covers = ["FR-7"]
+after = [2]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 5
+type = "story"
+title = "Simulateur des interfaces des collègues"
+description = "Imite les contrats avec panne et reprise simulées."
+verify = "Une attaque simulée fait passer la santé à dégradée puis à saine sans humain."
+covers = ["FR-2"]
+after = [1]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 6
+type = "story"
+title = "Basculement simulé ou réel et affichage du mode"
+description = "Un fichier de configuration choisit le mode de chaque interface et le mode est affiché."
+verify = "Passer de simulé à réel ne change que ce fichier ; le mode actif est visible."
+covers = ["FR-3"]
+after = [2, 5]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 7
+type = "story"
+title = "Contrôle réel-seulement avant jury"
+description = "Liste de contrôle qui vérifie que toutes les interfaces sont en réel avant la démonstration."
+verify = "Une interface restée simulée bloque le lancement en mode démo."
+covers = ["FR-4"]
+after = [6]
+hitl = true
+risk = "low"
+
+[[entry]]
+id = 8
+type = "story"
+title = "Doc d'API, README et tests de votre part"
+description = "Génère la doc d'API depuis les contrats, écrit le README d'installation et de relance et les tests des routes et de la bascule, sans secret en clair."
+verify = "Une seule commande lance les tests ; le README suffit à relancer la plateforme ; aucun secret dans l'archive."
+covers = ["FR-19"]
+after = [2, 6]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 9
+type = "story"
+title = "Trafic normal et attaques étiquetés, export CSV"
+description = "Le simulateur génère du trafic normal et des attaques annoncées avec étiquettes, exportables en CSV (graine fixe, mention synthétique)."
+verify = "Deux exports avec la même graine sont identiques ; chaque ligne porte son étiquette."
+covers = ["FR-22"]
+after = [5]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 10
+type = "story"
+title = "Simulateur : série de scores et événements déclarés"
+description = "Ajoute /scores (scores, seuil, étiquette) et POST /events (événements déclarés par le poste attaquant) au simulateur, conformes au contrat."
+verify = "La série de scores monte pendant une attaque simulée ; un événement déclaré apparaît dans /events avec sa source."
+covers = ["FR-21"]
+after = [5]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 11
+type = "story"
+title = "Simulateur : recommandation IA dans l'alerte et vérifications de reprise"
+description = "L'alerte simulée porte une recommandation (résumé, action suggérée, confiance) et /verifications expose les trois contrôles de reprise avec leur statut réel selon l'état simulé."
+verify = "Pendant la panne les vérifications sont ko ou en cours ; après la reprise les trois sont ok ; l'alerte porte une recommandation."
+covers = ["FR-26", "FR-28"]
+after = [5]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 12
+type = "story"
+title = "Simulateur : flux bloqués selon l'attaque"
+description = "Ajoute /flux-bloques : des blocages (limite de débit, injection) apparaissent selon le type d'attaque simulé."
+verify = "Une attaque de type injection produit des flux bloqués sans panne ; une attaque de charge en produit quelques-uns."
+covers = ["FR-30"]
+after = [5]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 13
+type = "story"
+title = "Simulateur : arrêt d'attaque et attaque de longue durée"
+description = "Ajoute /simulation/arret et un script d'attaque simulé qui dure tant qu'on ne l'arrête pas, comme un vrai outil."
+verify = "Après l'arrêt, l'effet cesse et la plateforme revient à l'état sain ; l'événement de fin est déclaré."
+covers = ["FR-32"]
+after = [5]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 14
+type = "story"
+title = "Dockerfile et exemple de compose des services"
+description = "Chaque service (API, authentification, frontal) a son Dockerfile et un exemple de compose que l'infra intègre."
+verify = "docker compose up démarre les services ; la base n'est pas exposée."
+covers = ["FR-34"]
+after = [2, 3]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 15
+type = "story"
+title = "Endpoint /metrics et journaux JSON structurés"
+description = "Expose /metrics (requêtes par statut, durée, disponibilité) et des journaux JSON pour Loki."
+verify = "Les métriques évoluent pendant une attaque ; chaque ligne de journal est du JSON valide."
+covers = ["FR-35"]
+after = [2]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 16
+type = "story"
+title = "Authentification en service distinct"
+description = "Sépare l'authentification en un petit service que l'API interroge."
+verify = "L'API refuse un jeton émis par un autre secret ; le service d'authentification tourne dans son propre conteneur."
+covers = ["FR-5", "FR-34"]
+after = [2]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 17
+type = "story"
+title = "Remise à zéro de la plateforme pour répétition"
+description = "Une commande remet la plateforme à son état initial sans redéployer."
+verify = "Après la remise à zéro, aucune transaction ancienne et la santé est ok."
+covers = ["FR-40"]
+after = [2]
+hitl = false
+risk = "low"
+
+[[entry]]
+id = 18
+type = "story"
+title = "Archive Code.zip reproductible et analyse de secrets"
+description = "Une commande produit Workshop2026-M2-G<n>-Code.zip depuis le dépôt et refuse de s'arrêter si un secret est trouvé."
+verify = "L'archive se reconstruit identique et un secret planté de test fait échouer la commande."
+covers = ["FR-39"]
+after = [8]
+hitl = false
+risk = "medium"
+
+[[entry]]
+id = 19
+type = "story"
+title = "Fiche de défense de chaque outil emprunté"
+description = "Pour chaque outil ou asset repris : pourquoi, licence, comment il fonctionne (test des 5 minutes devant le jury)."
+verify = "Chaque entrée de CREDITS et du README a sa fiche d'une page ; l'équipe sait l'expliquer."
+covers = ["FR-39"]
+after = []
+hitl = true
+risk = "low"

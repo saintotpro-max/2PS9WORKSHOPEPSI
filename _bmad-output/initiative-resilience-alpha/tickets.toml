@@ -1,0 +1,26 @@
+[[epic]]
+id = 1
+slug = "epic-plateforme-contrats"
+title = "La plateforme tourne, ou son simulateur à sa place"
+covers = ["FR-1","FR-2","FR-3","FR-4","FR-5","FR-6","FR-7","FR-19","FR-22","FR-26","FR-28","FR-30","FR-32","FR-34","FR-35","FR-39","FR-40"]
+
+[[epic]]
+id = 2
+slug = "epic-chaine-reprise"
+title = "Une attaque réelle est suivie d'une reprise sans humain"
+covers = ["FR-8","FR-9","FR-10","FR-11","FR-30","FR-32","FR-33","FR-36","FR-37","FR-38"]
+after = [{ epic = 1, needs = "l'API de transactions, la santé et le simulateur" }]
+
+[[epic]]
+id = 4
+slug = "epic-jeu-renpy"
+title = "Un jeu raconte la démonstration, chaque bouton agit pour de vrai"
+covers = ["FR-14","FR-15","FR-16","FR-17","FR-18","FR-23","FR-24","FR-27","FR-29","FR-32","FR-33","FR-39","FR-40"]
+after = [{ epic = 1, needs = "le simulateur (1.5)" }, { epic = 2, needs = "la chaîne réelle pour l'intégration finale (2.1, 2.4, 2.6)" }]
+
+[[epic]]
+id = 3
+slug = "epic-dashboard-jury"
+title = "Le jury comprend la démonstration en regardant l'écran du jeu"
+covers = ["FR-12","FR-13","FR-20","FR-21","FR-25","FR-30","FR-31"]
+after = [{ epic = 1, needs = "la bascule simulé/réel (1.6)" }, { epic = 2, needs = "le moteur de remédiation (2.2)" }, { epic = 4, needs = "le scaffold du jeu (4.1) et le terminal (4.4)" }]
