@@ -60,8 +60,38 @@ init -10 python:
             self.qr_vague = None       # chemin relatif du QR telecharge, ou None
             self.repetition = dict(passes=0, ok=0, en_cours=False)  # EX-12 : 10 passages sans intervention
             self.duel = None           # etat du duel autonome (attaquant/defenseur, raisons)
+            # Cible de l'attaque (IP/URL de la plateforme). Choisie au cockpit, elle sert
+            # a la fois a la supervision (HUD) et a la charge reelle (passee a ra-attacker).
+            self.cible = (self.cfg.get("plateforme") or {}).get("url", "")
 
     ETAT = Etat()
+
+    def cible_actuelle():
+        return ETAT.cible or (ETAT.cfg.get("plateforme") or {}).get("url", "") or ""
+
+    def definir_cible(valeur):
+        """Change l'IP/URL attaquee depuis le cockpit. Normalise, met a jour la
+        supervision ET la charge, puis persiste dans config/interfaces.json pour que
+        le choix survive a un redemarrage (l'IP WAN de pfSense change selon le Wi-Fi)."""
+        valeur = (valeur or "").strip().rstrip("/")
+        if not valeur:
+            return cible_actuelle()
+        if "://" not in valeur:
+            valeur = "https://" + valeur            # defaut HTTPS (WAF autosigne)
+        ETAT.cible = valeur
+        if isinstance(ETAT.cfg.get("plateforme"), dict):
+            ETAT.cfg["plateforme"]["url"] = valeur   # le HUD surveille la nouvelle cible
+        ETAT.chrono_debut = ETAT.chrono_fin = None   # repart proprement sur la nouvelle cible
+        try:
+            with open(CHEMIN_CONFIG, encoding="utf-8") as f:
+                disque = json.load(f)
+            if isinstance(disque.get("plateforme"), dict):
+                disque["plateforme"]["url"] = valeur
+            with open(CHEMIN_CONFIG, "w", encoding="utf-8") as f:
+                json.dump(disque, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass                                     # persistance best-effort
+        return valeur
 
     def http(methode, base, chemin, corps=None, jeton=None, timeout=3.0, trace=False):
         """Appel HTTP. Renvoie toujours un dict : code, data, mode, erreur.
@@ -240,8 +270,15 @@ init -10 python:
     NIVEAUX = [(1, "Saturer les paiements"), (2, "Épuiser les ressources"), (3, "Saturer le réseau"), (4, "Injecter une requête")]
 
     def _lancer_processus(commande):
-        """Lance l'outil dans son propre groupe de processus pour pouvoir l'arrêter avec ses enfants."""
-        options = dict(stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, cwd=RACINE)
+        """Lance l'outil dans son propre groupe de processus pour pouvoir l'arrêter avec ses enfants.
+        La cible choisie au cockpit est transmise par l'environnement : RA_CIBLE (vague
+        reelle via ra-attacker) et ALPHA_PLATEFORME_URL (scripts de charge directs)."""
+        env = os.environ.copy()
+        cible = cible_actuelle()
+        if cible:
+            env["RA_CIBLE"] = cible
+            env["ALPHA_PLATEFORME_URL"] = cible
+        options = dict(stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, cwd=RACINE, env=env)
         if os.name == "nt":
             options["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
         else:

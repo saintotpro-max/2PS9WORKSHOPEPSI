@@ -296,6 +296,9 @@ screen s_terminal():
             for numero, nom in NIVEAUX:
                 textbutton nom style "bouton_petit_rouge" action Function(lancer_niveau, numero) sensitive (ETAT.terminal_etat != "en_cours")
             null height 8
+            text ("CIBLE : " + sur(cible_actuelle() or "non definie")) font POLICE_ETROITE size 16 color "#8b949e" xmaximum 320
+            textbutton "Changer la cible (C)" style "bouton_petit" action Function(ui_definir_cible) sensitive (ETAT.terminal_etat != "en_cours")
+            null height 8
             textbutton "AUTONOMIE : LE DUEL" style "bouton_petit" action Jump("autonomie") sensitive (ETAT.terminal_etat != "en_cours")
             null height 6
             textbutton "STOP" style "bouton_stop" action Function(arreter_script)
@@ -324,6 +327,7 @@ screen s_terminal():
                 text "Script terminé (code 0). Le résultat sur la plateforme se lit dans le HUD." size 20 color "#c9d1d9"
             if porte_refermee():
                 text ("La porte se referme : la plateforme est revenue à l'état OK. Reprise mesurée : " + libelle_chrono() + " (relevé toutes les 2 s).") size 20 color "#7ee787" xmaximum 860
+    key "c" action Function(ui_definir_cible)
     key "K_ESCAPE" action Return("titre")
 
 
@@ -631,6 +635,17 @@ init python:
 
     def ui_reset_vague():
         reset_vague()
+
+    def _saisir_cible():
+        actuel = cible_actuelle().replace("https://", "").replace("http://", "")
+        val = renpy.input("Adresse de la plateforme a attaquer (IP ou URL)",
+                          default=actuel, length=48, allow="0123456789.:abcdefghijklmnopqrstuvwxyz/-")
+        if val is not None and val.strip():
+            definir_cible(val.strip())
+
+    def ui_definir_cible():
+        # input dans un contexte dedie : fonctionne depuis un bouton/une touche
+        renpy.invoke_in_new_context(_saisir_cible)
 
 
 screen s_vague():
