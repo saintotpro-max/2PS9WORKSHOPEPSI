@@ -274,11 +274,30 @@ screen s_paiement():
     key "K_ESCAPE" action Return("titre")
 
 
+screen canal_ia(persona, couleur, titre_canal, largeur):
+    # Le tchat propre a une IA : chacune son canal (demande utilisateur).
+    frame:
+        background "#0b0f17e6"
+        xsize largeur
+        ysize 164
+        padding (12, 8)
+        vbox:
+            spacing 3
+            text titre_canal font POLICE_ETROITE size 14 color "#6e7681"
+            if not canal(persona):
+                text "en attente…" font POLICE_TERMINAL size 15 color "#6e7681"
+            for m in canal(persona)[-4:]:
+                text (sur(m["at"]) + "  " + sur(m["texte"])) font POLICE_TERMINAL size 16 color couleur xmaximum (largeur - 28)
+
+
 screen s_terminal():
+    # S3 — cockpit d'attaque simple : controles + journal. Le match des 2 IA vit dans S7.
     modal True
     add "bg capuchon"
     add Solid("#000000b0")
     use bandeau_injoignable
+    timer 0.5 repeat True action Function(renpy.restart_interaction)
+    $ en_cours = ETAT.terminal_etat == "en_cours"
     hbox:
         xalign 0.5
         ypos 72
@@ -294,13 +313,11 @@ screen s_terminal():
                     text "LE HACKER" font POLICE_TITRE size 20 color "#ff7b86"
                     text "l'attaquant" font POLICE_ETROITE size 20 color "#8b949e"
             for numero, nom in NIVEAUX:
-                textbutton nom style "bouton_petit_rouge" action Function(lancer_niveau, numero) sensitive (ETAT.terminal_etat != "en_cours")
+                textbutton nom style "bouton_petit_rouge" action Function(lancer_niveau, numero) sensitive (not en_cours)
             null height 8
-            text ("CIBLE : " + sur(cible_actuelle() or "non definie")) font POLICE_ETROITE size 16 color "#8b949e" xmaximum 320
-            textbutton "Changer la cible (C)" style "bouton_petit" action Function(ui_definir_cible) sensitive (ETAT.terminal_etat != "en_cours")
+            text ("CIBLE : " + sur(cible_actuelle() or "non definie")) font POLICE_ETROITE size 16 color "#8b949e" xmaximum 330
+            textbutton "Changer la cible (C)" style "bouton_petit" action Function(ui_definir_cible) sensitive (not en_cours)
             null height 8
-            textbutton "AUTONOMIE : LE DUEL" style "bouton_petit" action Jump("autonomie") sensitive (ETAT.terminal_etat != "en_cours")
-            null height 6
             textbutton "STOP" style "bouton_stop" action Function(arreter_script)
             textbutton "Retour" style "bouton_petit" action Return("titre")
         vbox:
@@ -326,7 +343,7 @@ screen s_terminal():
             elif ETAT.terminal_etat == "fini":
                 text "Script terminé (code 0). Le résultat sur la plateforme se lit dans le HUD." size 20 color "#c9d1d9"
             if porte_refermee():
-                text ("La porte se referme : la plateforme est revenue à l'état OK. Reprise mesurée : " + libelle_chrono() + " (relevé toutes les 2 s).") size 20 color "#7ee787" xmaximum 860
+                text ("La porte se referme : la plateforme est revenue à l'état OK. Reprise mesurée : " + libelle_chrono() + ".") size 20 color "#7ee787" xmaximum 860
     key "c" action Function(ui_definir_cible)
     key "K_ESCAPE" action Return("titre")
 
@@ -517,8 +534,10 @@ screen s_salle():
             vbox:
                 spacing 6
                 use colonne_titre("#ff7b86", "LE HACKER", etat_capuchon(), "visage hacker", 300)
-                for e in evenements_de("attaquant", 5):
+                for e in evenements_de("attaquant", 4):
                     text (heure(e) + "  " + sur(e["detail"])) font POLICE_TERMINAL size 16 color "#ff7b86"
+                for m in canal("hacker")[-2:]:
+                    text ("» " + sur(m["texte"])) font POLICE_ETROITE size 15 color "#ffd7db" xmaximum 300
         frame:
             background "#0b0f17e6"
             xsize 420
@@ -536,6 +555,9 @@ screen s_salle():
                             padding (12, 4)
                             text moment font POLICE_ETROITE size 19 color ("#0b0f17" if phase_frise() == moment else "#6e7681")
                 text ("REPRISE " + libelle_chrono()) font POLICE_TERMINAL size 30 color ("#7ee787" if phase_frise() == "après" else "#ffffff")
+                $ _lat = latence_pic()
+                if ETAT.terminal_etat == "en_cours" and _lat:
+                    text ("⚠ SOUS CHARGE — latence %d ms" % _lat) font POLICE_TITRE size 19 color ("#dc3545" if _lat > 150 else "#d29922")
                 for c in ETAT.composants:
                     hbox:
                         spacing 8
@@ -554,6 +576,8 @@ screen s_salle():
                 text sur("Alerte  " + libelle_alerte_longue()) font POLICE_TERMINAL size 16 color ("#ff7b86" if ETAT.alerte else "#6e7681") xmaximum 448
                 for e in evenements_de("moteur", 2):
                     text (heure(e) + "  " + sur(e["detail"])) font POLICE_TERMINAL size 15 color "#58a6ff"
+                for m in canal("sentinelle")[-2:]:
+                    text ("» " + sur(m["texte"])) font POLICE_ETROITE size 15 color "#ffe9b0" xmaximum 446
     hbox:
         xalign 0.5
         ypos 420
@@ -599,8 +623,15 @@ screen s_salle():
                 text "JOURNAL" font POLICE_ETROITE size 17 color "#8b949e"
                 for e in reversed(ETAT.evenements[-7:]):
                     text (heure(e) + "  " + sur(e["detail"])) font POLICE_TERMINAL size 15 color COULEUR_SOURCE.get(e.get("source"), "#c9d1d9")
+    timer 0.5 repeat True action Function(renpy.restart_interaction)
+    if match_en_cours():
+        text ("● MATCH EN COURS — TOUR %d   ·   S : stop" % (ETAT.match or {}).get("tour", 0)) font POLICE_TITRE size 20 color "#7ee787" xalign 0.5 ypos 632
+    else:
+        text "▶ M : LANCER LE MATCH DES 2 IA" font POLICE_TITRE size 20 color "#36f1cd" xalign 0.5 ypos 632
     if not projection:
-        text "P projection  ·  V vague  ·  Échap retour" font POLICE_ETROITE size 19 color "#8b95c9" xalign 0.5 ypos 664
+        text "M match · S stop · P projection · V vague · Échap retour" font POLICE_ETROITE size 18 color "#8b95c9" xalign 0.5 ypos 668
+    key "m" action Function(demarrer_match)
+    key "s" action Function(arreter_match)
     key "p" action ToggleScreenVariable("projection")
     key "v" action Show("s_vague")
     key "K_ESCAPE" action Return("titre")

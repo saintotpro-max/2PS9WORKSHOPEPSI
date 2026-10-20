@@ -70,10 +70,11 @@ init python:
         import os
         return os.environ.get("SIM_LLM") == "1" and _duel_cfg()[0] is not None
 
-    def _duel_discuter(messages, modele, empreinte):
-        # Appel modele partage (attaque + defense). SSL tolerant (Python Ren'Py sans bundle
-        # CA), gros budget de jetons (modeles a raisonnement), cache. Renvoie texte ou None.
-        if empreinte in _duel_cache:
+    def _duel_discuter(messages, modele, empreinte=None):
+        # Appel modele partage (attaque + defense). SSL tolerant (Python Ren'Py sans bundle CA).
+        # empreinte falsy -> AUCUN cache (chaque replay varie). Temperature haute pour varier
+        # meme a prompt identique. Renvoie texte ou None.
+        if empreinte and empreinte in _duel_cache:
             return _duel_cache[empreinte]
         import json, re, ssl, urllib.request
         try:
@@ -82,14 +83,15 @@ init python:
         except Exception:
             ctx = ssl._create_unverified_context()
         cle, url, _, _ = _duel_cfg()
-        corps = {"model": modele, "messages": messages, "max_tokens": 900, "temperature": 0.6}
+        corps = {"model": modele, "messages": messages, "max_tokens": 150, "temperature": 0.9}
         req = urllib.request.Request(url, data=json.dumps(corps).encode(), method="POST",
                                      headers={"Content-Type": "application/json", "Authorization": "Bearer " + cle})
         try:
             with urllib.request.urlopen(req, timeout=45.0, context=ctx) as r:
                 texte = json.load(r)["choices"][0]["message"].get("content") or ""
             texte = re.sub(r"<think>.*?</think>", "", texte, flags=re.S).strip()
-            _duel_cache[empreinte] = texte
+            if empreinte:
+                _duel_cache[empreinte] = texte
             return texte
         except Exception:
             return None
@@ -137,77 +139,81 @@ init python:
             return "Rien a signaler : le service repond."
         return "Le service observe..."
 
+    # ---- Match in-tour : chaque persona CHOISIT et AGIT (reutilise le connecteur IA) -----
+    def _contexte_flux():
+        """Signaux REELS que les IA 'lisent' en temps reel : PIC de latence et charge
+        mesures pendant l'attaque (pas la derniere valeur deja retombee), sante, flux."""
+        import re
+        bits = ["Sante: %s" % libelle_sante(), "Alerte: %s" % libelle_alerte()]
+        latences, requetes = [], 0
+        for l in ETAT.terminal[-8:]:
+            m = re.search(r"latence /health (\d+) ms", l)
+            if m:
+                latences.append(int(m.group(1)))
+            m2 = re.search(r"(\d+) requetes envoyees", l)
+            if m2:
+                requetes = max(requetes, int(m2.group(1)))
+        if latences:
+            bits.append("Latence /health pic %d ms (ref ~13 ms)" % max(latences))
+        if requetes:
+            bits.append("Charge %d requetes" % requetes)
+        if ETAT.flux_total:
+            bits.append("Flux bloques: %d" % ETAT.flux_total)
+        return " | ".join(bits)
 
-screen s_duel(couleur, niveau, dwell=7.0):
-    modal True
-    # Duree de lecture minimale : le tour ne se ferme pas avant `dwell`, meme si la reprise
-    # est deja mesuree -> on a le temps de lire l'echange (fin du "defile trop vite").
-    default lisible = False
-    timer dwell action SetScreenVariable("lisible", True)
-    add "bg capuchon"
-    add Solid("#000000b8")
-    use bandeau_injoignable
-    # En-tete : on est bien sur l'ecran du Hacker, en mode duel autonome.
-    hbox:
-        xpos 24
-        ypos 48
-        spacing 16
-        text "AUTONOMIE — DUEL" font POLICE_TITRE size 24 color "#36f1cd"
-        text ("TOUR %d / 4" % niveau) font POLICE_TITRE size 24 color couleur yalign 0.5
-    hbox:
-        xalign 0.5
-        ypos 92
-        spacing 14
-        # Attaquant
-        frame:
-            background "#0b0f17e6"
-            xsize 330
-            ysize 540
-            padding (14, 12)
-            vbox:
-                spacing 8
-                use colonne_titre("#ff7b86", "LE HACKER", "l'attaquant", "visage hacker", 300)
-                text sur(ETAT.duel["nom"]) font POLICE_TITRE size 22 color couleur
-                text sur(ETAT.duel["raison"]) font POLICE_ETROITE size 20 color "#ffd7db" xmaximum 300
-                null height 6
-                for e in evenements_de("attaquant", 4):
-                    text (heure(e) + "  " + sur(e["detail"])) font POLICE_TERMINAL size 15 color "#ff7b86" xmaximum 300
-        # Logs au centre (le flux du duel)
-        frame:
-            background "#0d1117f0"
-            xsize 560
-            ysize 540
-            padding (16, 12)
-            vbox:
-                spacing 4
-                text "LOGS" font POLICE_ETROITE size 16 color "#6e7681"
-                for ligne in ETAT.terminal[-13:]:
-                    text sur(ligne) font POLICE_TERMINAL size 18 color couleur_ligne(ligne) xmaximum 524
-                null height 4
-                for ligne in ETAT.flux[-4:]:
-                    text sur(ligne) font POLICE_TERMINAL size 16 color "#58a6ff" xmaximum 524
-        # Defenseur
-        frame:
-            background "#0b0f17e6"
-            xsize 360
-            ysize 540
-            padding (14, 12)
-            vbox:
-                spacing 8
-                use colonne_titre("#e3b341", "LA SENTINELLE", "l'IA de defense", "visage badge", 332)
-                text sur((ETAT.duel and ETAT.duel.get("def_raison")) or duel_defense_raison()) font POLICE_ETROITE size 19 color "#ffe9b0" xmaximum 332
-                null height 4
-                text ("SANTE : " + libelle_sante()) font POLICE_TERMINAL size 18 color couleur_sante()
-                text ("REPRISE " + libelle_chrono()) font POLICE_TERMINAL size 22 color ("#7ee787" if ETAT.chrono_fin else "#c9d1d9")
-                for v in ETAT.verifications:
-                    hbox:
-                        spacing 8
-                        add Solid(COULEUR_VERIF.get(v["status"], "#8b949e"), xysize=(12, 12)) yalign 0.5
-                        text LIBELLE_VERIF.get(v["name"], v["name"]) font POLICE_TERMINAL size 15 color "#c9d1d9" xmaximum 300
-    text "Duel autonome : vous regardez. Espace pour accelerer." font POLICE_ETROITE size 19 color "#8b95c9" xalign 0.5 ypos 648
-    # Avance quand le tour est resolu ET que la duree de lecture minimale est passee ;
-    # espace pour avancer tout de suite ; cap de securite.
-    timer 0.4 repeat True action If(lisible and duel_resolu(niveau), Return(True), NullAction())
-    timer 60 action Return(True)
-    key "K_SPACE" action Return(True)
-    key "K_RETURN" action Return(True)
+    def latence_pic():
+        """Pic de latence /health mesure dans les dernieres lignes de charge (vrai, en ms)."""
+        import re
+        vals = []
+        for l in ETAT.terminal[-8:]:
+            m = re.search(r"latence /health (\d+) ms", l)
+            if m:
+                vals.append(int(m.group(1)))
+        return max(vals) if vals else 0
+
+    def hacker_prochain(tour, contre=""):
+        """LE HACKER enchaine la tactique du tour (escalade 1->4, attaques distinctes) et
+        RIPOSTE a la derniere contre-mesure de la Sentinelle. Renvoie (niveau=tour, phrase)."""
+        nom = dict(NIVEAUX).get(tour, "")
+        raison_defaut = DUEL_TACTIQUE.get(tour, "")
+        if not duel_ia_active():
+            return tour, raison_defaut
+        _, _, m_att, _ = _duel_cfg()
+        riposte = (" La defense vient de repliquer : '%s'. Contourne-la et frappe plus fort." % contre) if contre else ""
+        consigne = (PROMPT_HACKER + " Ta tactique de ce tour : %s. Annonce-la en une phrase.%s\n\n%s"
+                    % (nom, riposte, _contexte_flux()))
+        texte = _duel_discuter([{"role": "user", "content": consigne}], m_att)  # pas de cache : varie a chaque replay
+        return tour, (texte or raison_defaut)
+
+    def _event_sentinelle_reel():
+        """Dernier event de DECISION/ACTION du vrai moteur, ou None. Supporte les deux
+        formes de journal : enveloppe du simulateur (type/source) et liste brute reelle
+        (step/message, doc integration-infra-reelle.md 2.2)."""
+        for e in reversed(ETAT.evenements):
+            if e.get("step") in ("decision", "action") or e.get("type") in ("decision", "action") \
+               or e.get("source") == "sentinelle":
+                return e.get("message") or e.get("detail") or ""
+        return None
+
+    def sentinelle_prochain(niveau):
+        """LA SENTINELLE raconte la decision. Priorite au VRAI event du moteur (zero-touch) ;
+        sinon le modele si actif ; repli = recommandation deterministe."""
+        reel = _event_sentinelle_reel()
+        if reel:
+            return reel
+        if duel_ia_active():
+            _, _, _, m_def = _duel_cfg()
+            contexte = "Attaque : %s. %s" % (dict(NIVEAUX).get(niveau, "?"), _contexte_flux())
+            texte = _duel_discuter([{"role": "user", "content": PROMPT_DEFENSE + "\n\n" + contexte}], m_def)
+            if texte:
+                return texte
+        return duel_defense_raison()
+
+    def sentinelle_escalade(service):
+        """Mode ACTEUR (bonus) : escalade N1 via le relais INFRA, si configure. Jamais
+        d'appel direct au moteur ni a Docker ; jeton cote serveur. Sans relais, no-op."""
+        url = (ETAT.cfg.get("attaque") or {}).get("escalade_url")
+        if not url:
+            return False
+        http("POST", url, "", dict(service=service, raison="escalade N1 depuis le cockpit"), timeout=4.0)
+        return True

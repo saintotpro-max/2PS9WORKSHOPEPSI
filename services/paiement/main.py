@@ -29,6 +29,13 @@ DB = os.environ.get("ALPHA_DB", os.path.join(os.path.dirname(__file__), "paiemen
 
 METRIQUES = dict(tx_ok=0, tx_refus=0, auth_ok=0, auth_refus=0, requetes=0)
 
+# Resultats recents des paiements (True=ok, False=refus/503). Sert a declarer un etat
+# DEGRADE honnete quand le taux d'echec recent monte sous la charge (vrai signal, pas simule).
+from collections import deque  # noqa: E402
+RECENTS: "deque[bool]" = deque(maxlen=40)
+SEUIL_DEGRADE = 0.25  # > 25 % d'echecs recents = service degrade
+SONDE_LENTE_MS = int(os.environ.get("ALPHA_SONDE_LENTE_MS", "250"))  # ecriture plus lente = degrade
+
 
 def journal(evenement: str, **champs) -> None:
 
@@ -121,6 +128,7 @@ def auth_token(corps: Identifiants):
 def health():
 
     ok = False
+    t0 = time.time()
     try:
         with connexion() as cx:
             cx.execute("CREATE TABLE IF NOT EXISTS sonde (k TEXT PRIMARY KEY, v TEXT)")
@@ -130,8 +138,18 @@ def health():
             ok = relu is not None and relu["v"] == jeton
     except Exception:
         ok = False
-    status = "ok" if ok else "down"
-    return dict(status=status, last_transaction_ok=ok, checked_at=iso(maintenant()), mode=MODE)
+    sonde_ms = int((time.time() - t0) * 1000)
+    taux = round(RECENTS.count(False) / len(RECENTS), 2) if RECENTS else 0.0
+    # Degrade = vrai signal : soit des paiements echouent, soit l'ecriture est LENTE sous la
+    # contention (SQLite serialise : ca ne casse pas, ca ralentit). Reference ~ qq ms.
+    if not ok:
+        status = "down"
+    elif sonde_ms > SONDE_LENTE_MS or (len(RECENTS) >= 8 and taux > SEUIL_DEGRADE):
+        status = "degraded"
+    else:
+        status = "ok"
+    return dict(status=status, last_transaction_ok=ok, taux_echec=taux, sonde_ms=sonde_ms,
+                checked_at=iso(maintenant()), mode=MODE)
 
 
 @app.post("/transactions", status_code=201)
@@ -157,9 +175,11 @@ def creer_transaction(corps: TransactionEntree, authorization: str | None = Head
             )
     except sqlite3.Error as e:
         METRIQUES["tx_refus"] += 1
+        RECENTS.append(False)
         journal("tx_refus", raison=str(e))
         return erreur(503, "Service indisponible ou degrade")
     METRIQUES["tx_ok"] += 1
+    RECENTS.append(True)
     journal("tx_ok", id=tx["id"], amount_cents=tx["amount_cents"], payee=tx["payee"])
     return dict(tx, mode=MODE)
 

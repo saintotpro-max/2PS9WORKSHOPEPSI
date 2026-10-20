@@ -208,6 +208,13 @@ S7 SALLE DE CONTROLE (D16, D17) — remplace le dashboard React : un ecran
     3.1 a 3.7, budget propre (hors des 30 min), a estimer par l'utilisateur.
     ROLES (D17) : chaque poste a un role (hote ou attaquant) ; le jury ne joue
     que le client ; en demo, un role non verrouille est refuse.
+    MATCH DES 2 IA (D20, decision 2026-10-20) : touche M lance un match ou LE
+    HACKER (persona LLM) choisit et lance de vraies attaques et LA SENTINELLE
+    (persona LLM) ANALYSE le flux reel (latence, requetes, score, sante) et pose
+    une contre-mesure qui COUPE l'attaque (pas une minuterie). Chaque IA a son
+    canal affiche dans sa colonne. Modele externe via SIM_LLM seulement (jamais
+    le jour J : repli deterministe). Zero-touch : la Sentinelle explique/decide,
+    le systeme reel remedie. C'est la version VIVANTE de S7, pas un nouvel ecran.
 S6 (cache) ERREUR SYSTEME — ecran injoignable (EC5), le jeu ne
     plante jamais.
 

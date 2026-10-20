@@ -250,14 +250,15 @@ testsuite jeu:
         assert screen "s_epilogue" timeout 160
         assert eval test_reprise_mesuree() timeout 3
 
-    testcase duel_autonome:
-        description "AUTONOMIE : depuis l'ecran du Hacker, le duel enchaine les 4 tactiques seul jusqu'a l'epilogue"
-        keysym "1"
-        assert screen "s_terminal" timeout 5
-        click "AUTONOMIE : LE DUEL"
-        assert screen "s_duel" timeout 10
-        assert screen "s_epilogue" timeout 160
-        assert eval test_reprise_mesuree() timeout 3
+    testcase match_in_tour:
+        description "MATCH : dans la salle de controle, les deux IA enchainent ; le canal du Hacker se remplit"
+        keysym "4"
+        assert screen "s_salle" timeout 5
+        keysym "m"
+        assert eval match_en_cours() timeout 10
+        assert eval len(canal("hacker")) > 0 timeout 20
+        keysym "s"
+        assert eval (not match_en_cours()) timeout 10
 
     testcase repetition_ex12:
         description "EX-12 : la démo passe plusieurs fois de suite sans intervention humaine"
@@ -483,24 +484,26 @@ testsuite visuel:
         screenshot "../captures/06-epilogue.png"
         keysym "K_ESCAPE"
         assert screen "s_titre" timeout 5
-        keysym "1"
-        assert screen "s_terminal" timeout 5
-        click "AUTONOMIE : LE DUEL"
-        assert screen "s_duel" timeout 10
+        keysym "4"
+        assert screen "s_salle" timeout 5
+        keysym "m"
+        assert eval match_en_cours() timeout 10
         pause 4.0
-        screenshot "../captures/10-duel.png"
+        screenshot "../captures/10-match.png"
+        keysym "s"
 
 
 testsuite reel:
     teardown:
         exit
-    testcase duel_llm:
-        description "Mode reel : le modele fait parler LE HACKER dans le duel (SIM_LLM=1)"
+    testcase match_llm:
+        description "Mode reel : le modele fait parler les deux IA dans le match (SIM_LLM=1)"
         run Jump("start")
         assert screen "s_titre" timeout 8
-        keysym "1"
-        assert screen "s_terminal" timeout 5
-        click "AUTONOMIE : LE DUEL"
-        assert screen "s_duel" timeout 10
+        keysym "4"
+        assert screen "s_salle" timeout 5
+        keysym "m"
+        assert eval match_en_cours() timeout 10
         pause 20.0
-        screenshot "../captures/10-duel-reel.png"
+        screenshot "../captures/10-match-reel.png"
+        keysym "s"

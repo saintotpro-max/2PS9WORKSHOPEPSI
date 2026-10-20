@@ -60,6 +60,8 @@ init -10 python:
             self.qr_vague = None       # chemin relatif du QR telecharge, ou None
             self.repetition = dict(passes=0, ok=0, en_cours=False)  # EX-12 : 10 passages sans intervention
             self.duel = None           # etat du duel autonome (attaquant/defenseur, raisons)
+            self.chat = {"hacker": [], "sentinelle": []}  # canal de conversation par persona
+            self.match = None          # etat du match in-tour : {tour, niveau, en_cours}
             # Cible de l'attaque (IP/URL de la plateforme). Choisie au cockpit, elle sert
             # a la fois a la supervision (HUD) et a la charge reelle (passee a ra-attacker).
             self.cible = (self.cfg.get("plateforme") or {}).get("url", "")
@@ -68,6 +70,21 @@ init -10 python:
 
     def cible_actuelle():
         return ETAT.cible or (ETAT.cfg.get("plateforme") or {}).get("url", "") or ""
+
+    def dire(persona, texte):
+        """Ajoute une ligne au canal de conversation d'une IA (hacker/sentinelle).
+        Horodatee, dedoublonnee d'affilee, canal borne pour ne pas gonfler sans fin."""
+        texte = (texte or "").strip()
+        if not texte:
+            return
+        canal = ETAT.chat.setdefault(persona, [])
+        if canal and canal[-1]["texte"] == texte:
+            return
+        canal.append(dict(at=time.strftime("%H:%M:%S"), texte=texte))
+        del canal[:-30]
+
+    def canal(persona):
+        return ETAT.chat.get(persona, [])
 
     def definir_cible(valeur):
         """Change l'IP/URL attaquee depuis le cockpit. Normalise, met a jour la
@@ -374,6 +391,106 @@ init -10 python:
             minuteur = threading.Timer(2.0, lambda: _tuer_arbre(p, force=True) if p.poll() is None else None)
             minuteur.daemon = True
             minuteur.start()
+
+    # ---- Pilote du MATCH in-tour : les deux IA enchainent, l'operateur garde la main ------
+    def match_en_cours():
+        return bool(ETAT.match and ETAT.match.get("en_cours"))
+
+    def _flux_paiements():
+        """Flux de paiements legitimes en fond pendant le match (~8/s). TX OK/KO = vrais
+        appels ; c'est ce flux que l'attaque fait echouer -> degradation reelle et visible."""
+        base = ETAT.cfg["plateforme"]["url"]
+        j = http("POST", base, "/auth/token", dict(username="demo", password="demo"))
+        jeton = (j.get("data") or {}).get("access_token") if j["code"] == 200 else None
+        while match_en_cours():
+            r = http("POST", base, "/transactions",
+                     dict(amount_cents=1250, currency="EUR", payer="client-fictif", payee="boutique-fictive"),
+                     jeton=jeton, timeout=3.0)
+            if r["code"] == 201:
+                ETAT.tx_ok += 1
+            else:
+                ETAT.tx_ko += 1
+                if r["code"] in (401, None):      # jeton expire ou injoignable : re-auth
+                    j = http("POST", base, "/auth/token", dict(username="demo", password="demo"))
+                    jeton = (j.get("data") or {}).get("access_token") if j["code"] == 200 else None
+            time.sleep(0.12)
+
+    def _detecteur_match():
+        """Detecteur-seuil local (perimetre dev, pas de ML) : quand la LATENCE paiements
+        vecue monte (vrai signal : file d'attente sous charge) ou que la plateforme se
+        degrade, envoie une VRAIE alerte DoS au moteur (recommande block_source, l'action
+        qui reussit en local) -> le moteur decide, la Sentinelle rapporte sa vraie decision."""
+        alerte_envoyee = False
+        cible = (ETAT.cfg.get("moteur") or {}).get("cible", "alpha-paiement")
+        while match_en_cours():
+            lat = latence_pic()
+            if (lat > 200 or ETAT.sante in ("degraded", "down")) and not alerte_envoyee:
+                http("POST", ETAT.cfg["moteur"]["url"], "/alerts", dict(
+                    source="detecteur-local", kind="dos", severity="high", score=0.9,
+                    target=cible, detail="Latence paiements %d ms sous charge" % lat,
+                    recommendation=dict(summary="Saturation des paiements detectee",
+                                        suggested_action="block_source", confidence=0.9)), timeout=3.0)
+                alerte_envoyee = True
+            elif lat < 60 and ETAT.sante == "ok":
+                alerte_envoyee = False
+            time.sleep(0.5)
+
+    def demarrer_match():
+        """Lance le match des deux IA dans la tour, en tache de fond (pas d'ecran modal).
+        Le HACKER choisit et lance de vraies attaques ; la SENTINELLE raconte la decision.
+        En fond : un flux de vrais paiements + un detecteur-seuil (boucle reelle locale)."""
+        if match_en_cours():
+            return
+        if ETAT.terminal_etat == "en_cours":
+            arreter_script()   # un match part d'un etat propre : on coupe l'attaque en cours
+        ETAT.match = dict(en_cours=True, tour=0, niveau=None)
+        ETAT.chat = {"hacker": [], "sentinelle": []}
+        ETAT.tx_ok = 0
+        ETAT.tx_ko = 0
+        for cible_fil in (_boucle_match, _flux_paiements, _detecteur_match):
+            t = threading.Thread(target=cible_fil)
+            t.daemon = True
+            t.start()
+
+    def arreter_match():
+        """STOP du match : coupe la boucle et l'outil en cours."""
+        if ETAT.match:
+            ETAT.match["en_cours"] = False
+        arreter_script()
+
+    def _attendre(predicat, limite_s):
+        fin = time.time() + limite_s
+        while time.time() < fin and match_en_cours() and predicat():
+            time.sleep(0.3)
+
+    def _boucle_match():
+        """Un tour = le Hacker choisit (LLM) -> vraie attaque -> la Sentinelle ANALYSE le flux
+        PENDANT l'attaque et pose sa contre-mesure, qui COUPE l'attaque (pas une minuterie).
+        S'arrete au bout des 4 tactiques ou sur STOP."""
+        # Exactement 4 tours (un par tactique, escalade 1->4), puis fin nette. Le niveau
+        # suggere = le numero du tour, pour que les attaques different et que ca progresse.
+        derniere_defense = ""
+        for tour in (1, 2, 3, 4):
+            if not match_en_cours():
+                break
+            _attendre(lambda: ETAT.terminal_etat == "en_cours", 3.0)  # terminal libre avant le tour
+            niveau, raison = hacker_prochain(tour, derniere_defense)  # le Hacker riposte a la defense
+            ETAT.match["tour"] = tour
+            ETAT.match["niveau"] = niveau
+            dire("hacker", raison)
+            lancer_niveau(niveau)
+            # Laisse la charge tourner ~8 s : la latence et les requetes montent, la
+            # Sentinelle a de la vraie matiere a analyser avant de decider.
+            _attendre(lambda: ETAT.terminal_etat == "en_cours", 8.0)
+            derniere_defense = sentinelle_prochain(niveau)   # la Sentinelle decide, en reponse
+            dire("sentinelle", derniere_defense)
+            if match_en_cours() and ETAT.terminal_etat == "en_cours":
+                arreter_script()                 # contre-mesure : la defense coupe l'attaque
+            _attendre(lambda: ETAT.terminal_etat == "en_cours", 6.0)
+            _attendre(lambda: ETAT.chrono_fin is None, 3.0)   # laisse mesurer la reprise
+        if ETAT.match:
+            ETAT.match["en_cours"] = False
+            dire("sentinelle", "Match termine : le service a tenu, zero intervention humaine.")
 
     def sur(texte):
         """Échappe le texte venu de l'extérieur avant affichage."""
