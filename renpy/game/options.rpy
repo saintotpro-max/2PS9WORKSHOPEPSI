@@ -58,6 +58,9 @@ define config.has_voice = False
 ## (sinon le curseur semble "ne rien faire"). Son CC0 Kenney, voir CREDITS.md.
 define config.sample_sound = "assets/audio/reprise.ogg"
 
+## Musique d'ambiance (boucle cyberpunk CC0, voir CREDITS.md). Jouee au menu et en jeu.
+define config.main_menu_music = "assets/audio/ambiance.ogg"
+
 
 
 

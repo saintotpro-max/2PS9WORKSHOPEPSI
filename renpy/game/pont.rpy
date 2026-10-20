@@ -262,7 +262,11 @@ init -10 python:
 
     def _executer_niveau(niveau):
         cfg = ETAT.cfg["attaque"]
-        script = os.path.join(RACINE, cfg["dossier"], "niveau-%d.py" % niveau)
+        # Niveau reel (arsenal, vraie charge sur la plateforme) ou simule (simulateur).
+        dossier = cfg["dossier"]
+        if niveau in cfg.get("niveaux_reels", []):
+            dossier = cfg.get("dossier_reel", dossier)
+        script = os.path.join(RACINE, dossier, "niveau-%d.py" % niveau)
         code = None
         try:
             ETAT.processus = _lancer_processus([cfg.get("python", "python3"), script])

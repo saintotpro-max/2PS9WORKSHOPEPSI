@@ -8,6 +8,9 @@ RACINE="$(cd "$(dirname "$0")/.." && pwd)"
 SDK="${RENPY_SDK:-$HOME/.local/opt/renpy-8.5.3-sdk}"
 PORT_PAIEMENT=8770
 PORT_SIM=8765
+# Modele externe (cle hors depot, ~/.config/alpha) : simulateur et duel parlent pour de vrai.
+# Le jour de la demonstration : SIM_LLM=0 scripts/lancer-reel.sh
+export SIM_LLM="${SIM_LLM:-1}"
 
 lancer_service() {
   local dossier="$1" port="$2" nom="$3"

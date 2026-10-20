@@ -12,6 +12,7 @@
 | Polices Kenney Future et Kenney Future Narrow (`assets/fonts`) | fournies avec le pack Kenney ci-dessus | CC0 | titres et boutons |
 | Police Share Tech Mono (`assets/fonts`) | Google Fonts, Carrois Type Design, https://github.com/google/fonts/tree/main/ofl/sharetechmono | SIL OFL 1.1 (`assets/fonts/OFL-ShareTechMono.txt`), police non modifiée | terminal, HUD, flux |
 | Sons (`assets/audio/*.ogg`) | « Interface Sounds » par Kenney, https://opengameart.org/content/interface-sounds (telecharge le 2026-10-20) | CC0 (uploader Kenney) | 7 sons OGG choisis : signature par type d'attaque (charge/lentes/reseau/injection), alerte, reprise, echec |
+| Musique d'ambiance (`assets/audio/ambiance.ogg`) | « Claimed by the Void » (vitalezzz vs tricksntraps), https://opengameart.org/content/claimed-by-the-void-new-factory-ai-fight-and-simulation-unknown-vitalezzz-vs-tricksntraps (telecharge le 2026-10-20) | CC0 (licence resultante indiquee sur la page) | boucle cyberpunk 3 min 20, menu et jeu |
 | Art | aucun art créé pour le projet | sans objet | tout vient des sources ci-dessus ; fonds et visages recadrés ou agrandis uniquement |
 
 ## Candidats écartés (recherche du 2026-10-19)
