@@ -12,16 +12,16 @@ skinparam component {
   BorderColor<<ia>> #1565C0
 }
 
-title RESILIENCE ALPHA : points d'integration\nvert = deja fait (dev/cyber/jeu)   orange = a brancher par INFRA   bleu = a brancher par IA
+title RESILIENCE ALPHA : points d'integration\nvert = fait   orange = INFRA   bleu = IA
 
-package "NOUS (deja fait)" {
+package "Fait (dev, cyber, jeu)" {
   [Jeu et cockpit Ren'Py] <<fait>> as JEU
   [Plateforme de paiement] <<fait>> as PLAT
   [Moteur de remediation] <<fait>> as MOT
   [Arsenal d'attaque] <<fait>> as ARS
 }
 
-package "INFRA a brancher" {
+package "INFRA" {
   [Deploiement Docker + compose] <<infra>> as DEP
   [Collecte Prometheus + Loki] <<infra>> as COL
   [WAF / IPS qui bloque les flux] <<infra>> as WAF
@@ -30,7 +30,7 @@ package "INFRA a brancher" {
   [pfSense : WAN 443 + tunnel] <<infra>> as PF
 }
 
-package "IA a brancher" {
+package "IA" {
   [Detecteur ML : score + alertes] <<ia>> as DET
   [Assistant RAG] <<ia>> as RAG
 }
@@ -46,12 +46,5 @@ QR --> PLAT : charge du public (DDoS controle)
 DEP ..> PLAT : met en conteneur
 DEP ..> MOT : met en conteneur
 PF ..> JEU : rend la plateforme joignable
-
-legend right
-  Ce que le jeu attend des collegues :
-  INFRA donne l'actionneur, la collecte, le WAF, le tunnel et le reseau
-  IA donne le detecteur ML et l'assistant
-  Le passage au reel ne change qu'un fichier de config
-endlegend
 
 @enduml
