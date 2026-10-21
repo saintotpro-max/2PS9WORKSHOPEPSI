@@ -538,6 +538,8 @@ screen s_salle():
                     text (heure(e) + "  " + sur(e["detail"])) font POLICE_TERMINAL size 16 color "#ff7b86"
                 for m in canal("hacker")[-2:]:
                     text ("» " + sur(m["texte"])) font POLICE_ETROITE size 15 color "#ffd7db" xmaximum 300
+        $ _statut, _couleur_statut = statut_plateforme()
+        $ _phase = "pendant" if (match_en_cours() and ETAT.latences) else phase_frise()
         frame:
             background "#0b0f17e6"
             xsize 420
@@ -545,25 +547,44 @@ screen s_salle():
             padding (16, 12)
             vbox:
                 spacing 6
-                add Solid("#58a6ff", xysize=(388, 4))
-                text ("PLATEFORME : " + libelle_sante()) font POLICE_TITRE size 22 color couleur_sante()
+                add Solid(_couleur_statut, xysize=(388, 4))
+                text ("PLATEFORME : " + _statut) font POLICE_TITRE size 24 color _couleur_statut
                 hbox:
                     spacing 6
                     for moment in ("avant", "pendant", "après"):
                         frame:
-                            background ("#58a6ff" if phase_frise() == moment else "#161b22")
+                            background (_couleur_statut if _phase == moment else "#161b22")
                             padding (12, 4)
-                            text moment font POLICE_ETROITE size 19 color ("#0b0f17" if phase_frise() == moment else "#6e7681")
-                text ("REPRISE " + libelle_chrono()) font POLICE_TERMINAL size 30 color ("#7ee787" if phase_frise() == "après" else "#ffffff")
-                $ _lat = latence_pic()
-                if ETAT.terminal_etat == "en_cours" and _lat:
-                    text ("⚠ SOUS CHARGE — latence %d ms" % _lat) font POLICE_TITRE size 19 color ("#dc3545" if _lat > 150 else "#d29922")
+                            text moment font POLICE_ETROITE size 19 color ("#0b0f17" if _phase == moment else "#6e7681")
+                if ETAT.latences:
+                    hbox:
+                        spacing 10
+                        yalign 0.5
+                        text ("%d ms" % latence_actuelle()) font POLICE_TERMINAL size 30 color _couleur_statut
+                        text "latence paiement (ref ~15 ms)" font POLICE_ETROITE size 14 color "#6e7681" yalign 0.6
+                    fixed:
+                        xysize (388, 36)
+                        hbox:
+                            spacing 1
+                            yalign 1.0
+                            for v in ETAT.latences[-60:]:
+                                add Solid(("#dc3545" if v >= SEUIL_SATURE_MS else "#e3b341" if v >= SEUIL_RALENTI_MS else "#2ea043"),
+                                          xysize=(6, max(2, min(36, v // 8)))) yalign 1.0
+                    text ("PAIEMENTS   OK %d  ·  KO %d" % (ETAT.tx_ok, ETAT.tx_ko)) font POLICE_TERMINAL size 18 color "#c9d1d9"
+                else:
+                    text ("REPRISE " + libelle_chrono()) font POLICE_TERMINAL size 30 color ("#7ee787" if phase_frise() == "après" else "#ffffff")
+                    text ("Client  " + etat_ombre()) font POLICE_TERMINAL size 17 color "#8b949e"
+                hbox:
+                    spacing 10
+                    add Solid(("#2ea043" if ETAT.joignable else "#dc3545"), xysize=(10, 10)) yalign 0.5
+                    text "plateforme" font POLICE_TERMINAL size 14 color "#8b949e" yalign 0.5
+                    add Solid(("#2ea043" if ETAT.evenements else "#6e7681"), xysize=(10, 10)) yalign 0.5
+                    text "moteur" font POLICE_TERMINAL size 14 color "#8b949e" yalign 0.5
                 for c in ETAT.composants:
                     hbox:
                         spacing 8
                         add Solid(couleur_composant(c["status"]), xysize=(10, 10)) yalign 0.5
                         text sur(c["name"]) font POLICE_TERMINAL size 17 color "#c9d1d9"
-                text ("Client  " + etat_ombre()) font POLICE_TERMINAL size 17 color "#8b949e"
         frame:
             background "#0b0f17e6"
             xsize 480

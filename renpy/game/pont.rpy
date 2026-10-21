@@ -62,6 +62,7 @@ init -10 python:
             self.duel = None           # etat du duel autonome (attaquant/defenseur, raisons)
             self.chat = {"hacker": [], "sentinelle": []}  # canal de conversation par persona
             self.match = None          # etat du match in-tour : {tour, niveau, en_cours}
+            self.latences = []         # latence reelle des paiements (ms), pour la salle vivante
             # Cible de l'attaque (IP/URL de la plateforme). Choisie au cockpit, elle sert
             # a la fois a la supervision (HUD) et a la charge reelle (passee a ra-attacker).
             self.cible = (self.cfg.get("plateforme") or {}).get("url", "")
@@ -403,9 +404,12 @@ init -10 python:
         j = http("POST", base, "/auth/token", dict(username="demo", password="demo"))
         jeton = (j.get("data") or {}).get("access_token") if j["code"] == 200 else None
         while match_en_cours():
+            t0 = time.time()
             r = http("POST", base, "/transactions",
                      dict(amount_cents=1250, currency="EUR", payer="client-fictif", payee="boutique-fictive"),
                      jeton=jeton, timeout=3.0)
+            ETAT.latences.append(int((time.time() - t0) * 1000))   # latence vecue, vrai signal
+            del ETAT.latences[:-60]
             if r["code"] == 201:
                 ETAT.tx_ok += 1
             else:
@@ -425,14 +429,19 @@ init -10 python:
         while match_en_cours():
             lat = latence_pic()
             if (lat > 200 or ETAT.sante in ("degraded", "down")) and not alerte_envoyee:
+                reco = dict(summary="Saturation des paiements detectee",
+                            suggested_action="block_source", confidence=0.9)
                 http("POST", ETAT.cfg["moteur"]["url"], "/alerts", dict(
                     source="detecteur-local", kind="dos", severity="high", score=0.9,
                     target=cible, detail="Latence paiements %d ms sous charge" % lat,
-                    recommendation=dict(summary="Saturation des paiements detectee",
-                                        suggested_action="block_source", confidence=0.9)), timeout=3.0)
+                    recommendation=reco), timeout=3.0)
+                # Rebranche la reco de la Sentinelle sur le vrai signal (le moteur reel ne
+                # sert pas GET /alerts : on pose l'alerte localement pour l'affichage).
+                ETAT.alerte = dict(kind="dos", recommendation=reco)
                 alerte_envoyee = True
             elif lat < 60 and ETAT.sante == "ok":
                 alerte_envoyee = False
+                ETAT.alerte = None
             time.sleep(0.5)
 
     def demarrer_match():

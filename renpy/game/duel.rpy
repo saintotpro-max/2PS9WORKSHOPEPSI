@@ -171,6 +171,31 @@ init python:
                 vals.append(int(m.group(1)))
         return max(vals) if vals else 0
 
+    SEUIL_RALENTI_MS = 80
+    SEUIL_SATURE_MS = 200
+
+    def latence_actuelle():
+        """Latence reelle du flux de paiements (ETAT.latences), mesure la plus recente.
+        0 si aucun paiement n'a encore ete mesure (pas de match en cours)."""
+        return ETAT.latences[-1] if ETAT.latences else 0
+
+    def latence_moyenne(n=10):
+        if not ETAT.latences:
+            return 0
+        recentes = ETAT.latences[-n:]
+        return int(sum(recentes) / len(recentes))
+
+    def statut_plateforme():
+        """FLUIDE / RALENTI / SATURE selon la latence reelle des paiements. Couleur assortie."""
+        lat = latence_moyenne()
+        if not ETAT.latences:
+            return "EN ATTENTE", "#6e7681"
+        if lat >= SEUIL_SATURE_MS:
+            return "SATURE", "#dc3545"
+        if lat >= SEUIL_RALENTI_MS:
+            return "RALENTI", "#e3b341"
+        return "FLUIDE", "#2ea043"
+
     def hacker_prochain(tour, contre=""):
         """LE HACKER enchaine la tactique du tour (escalade 1->4, attaques distinctes) et
         RIPOSTE a la derniere contre-mesure de la Sentinelle. Renvoie (niveau=tour, phrase)."""
