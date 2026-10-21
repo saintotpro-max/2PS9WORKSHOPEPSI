@@ -1,0 +1,6 @@
+---
+# Les configurations sont montées en volume : un changement impose un redémarrage
+- name: Redémarrer la pile obs
+  community.docker.docker_compose_v2:
+    project_src: "{{ obs_dir }}"
+    state: restarted

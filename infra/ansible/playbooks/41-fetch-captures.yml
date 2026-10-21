@@ -1,0 +1,21 @@
+---
+# Rapatrie les CSV d'entraînement de la sonde IPS sur ra-ansible (~/captures/).
+#   ansible-playbook playbooks/41-fetch-captures.yml
+- name: Récupérer le jeu de données de la sonde IPS
+  hosts: ips_hosts
+  become: true
+  tasks:
+    - name: Fichiers disponibles
+      ansible.builtin.find:
+        paths: /var/lib/ips-capture
+        patterns: "*.csv"
+      register: captures
+
+    - name: Copie vers le nœud de contrôle
+      ansible.builtin.fetch:
+        src: "{{ item.path }}"
+        dest: "{{ lookup('env', 'HOME') }}/captures/"
+        flat: true
+      loop: "{{ captures.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"

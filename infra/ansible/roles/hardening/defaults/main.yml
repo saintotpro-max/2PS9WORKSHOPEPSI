@@ -1,0 +1,9 @@
+---
+# Ports TCP ouverts en entrée sur l'hôte : [{port, from (liste de CIDR), comment}]
+# from absent = toutes sources. Défini par groupe dans inventory/group_vars.
+hostfw_tcp_allow: []
+# Interfaces de confiance (en plus de lo), ex. ponts Docker pour l'exporter de l'hôte
+hostfw_trusted_ifaces: []
+# Ports publiés par Docker à restreindre (chaîne DOCKER-USER) : [{port, from}]
+# port = port du CONTENEUR (après traduction d'adresse)
+docker_user_restrict: []

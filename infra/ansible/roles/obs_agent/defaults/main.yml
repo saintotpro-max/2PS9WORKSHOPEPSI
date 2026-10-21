@@ -1,0 +1,4 @@
+---
+obs_agent_dir: /opt/obs-agent
+alloy_loki_url: "http://{{ docker_lan_ip }}:3100/loki/api/v1/push"
+alloy_docker_host: tcp://socket-proxy:2375

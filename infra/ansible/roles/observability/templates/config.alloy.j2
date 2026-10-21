@@ -1,0 +1,64 @@
+// {{ ansible_managed }}
+// Collecte des journaux de {{ inventory_hostname }} vers Loki : conteneurs Docker + journald.
+// Partagé par les rôles observability (ra-docker) et obs_agent (ra-ips).
+// Accès Docker via docker-socket-proxy en lecture seule (jamais le socket brut).
+
+discovery.docker "containers" {
+  host = "{{ alloy_docker_host }}"
+}
+
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "project"
+  }
+}
+
+loki.source.docker "containers" {
+  host       = "{{ alloy_docker_host }}"
+  targets    = discovery.relabel.containers.output
+  labels     = {host = "{{ inventory_hostname }}", job = "docker"}
+  forward_to = [loki.process.json.receiver]
+}
+
+// Journaux JSON (convention du contrat DEV) : le niveau devient un label filtrable
+loki.process "json" {
+  stage.json {
+    expressions = {level = "level"}
+  }
+  stage.labels {
+    values = {level = ""}
+  }
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.relabel "journal" {
+  forward_to = []
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+}
+
+loki.source.journal "system" {
+  relabel_rules = loki.relabel.journal.rules
+  labels        = {host = "{{ inventory_hostname }}", job = "journal"}
+  forward_to    = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "{{ alloy_loki_url }}"
+  }
+}

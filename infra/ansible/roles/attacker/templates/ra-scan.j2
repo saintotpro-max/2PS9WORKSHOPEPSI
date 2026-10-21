@@ -1,0 +1,11 @@
+#!/bin/sh
+# {{ ansible_managed }} — génère du trafic de RECONNAISSANCE (scan) vers la plateforme
+# du lab, pour capturer un jeu d'entraînement IPS. À lancer PENDANT la capture :
+#   sur ra-ips :      ips-label reconnaissance
+#   sur ra-attacker : ra-scan
+#   sur ra-ips :      ips-label off
+# Garde-fou : scan.py refuse toute cible hors du périmètre du lab.
+set -a
+. {{ attack_dir }}/attack.env
+set +a
+exec python3 {{ attack_dir }}/scan.py "$@"

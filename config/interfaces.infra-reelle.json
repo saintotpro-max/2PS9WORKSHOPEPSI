@@ -1,0 +1,23 @@
+{
+  "_commentaire": "Mode REEL complet contre l'infra du lab (infra/, collègue). Adapter : plateforme.url et moteur/detection = IP WAN courante de pfSense (bouton C du cockpit la persiste), attaque.tunnel_url = URL publique du compteur. Mot de passe du compte demo : ALPHA_DEMO_PASSWORD (environnent, hors depot).",
+  "demo": false,
+  "role": "tous",
+
+  "plateforme": { "mode": "reel", "url": "https://10.60.64.36" },
+
+  "moteur": { "mode": "reel", "url": "https://10.60.64.36/dashboard/api/remediation" },
+
+  "detection": { "mode": "reel", "url": "https://10.60.64.36/dashboard/api/prom" },
+
+  "waf": { "mode": "reel", "url": "https://10.60.64.36/dashboard/api/prom" },
+
+  "assistant": { "mode": "simule", "url": "http://127.0.0.1:8765" },
+
+  "attaque": {
+    "mode": "reel",
+    "dossier": "infra/cockpit/attaque-reelle",
+    "niveaux_reels": [1, 2, 3, 4],
+    "python": "python3",
+    "tunnel_url": "https://REMPLACER-PAR-URL-TUNNEL"
+  }
+}

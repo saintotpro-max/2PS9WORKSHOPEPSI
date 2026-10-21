@@ -1,0 +1,6 @@
+---
+- name: Durcissement des VM Linux (pare-feu d'entrée, SSH, ports Docker publiés)
+  hosts: control:docker_hosts:ips_hosts
+  become: true
+  roles:
+    - hardening

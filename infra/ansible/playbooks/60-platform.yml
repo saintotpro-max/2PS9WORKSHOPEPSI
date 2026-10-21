@@ -1,0 +1,6 @@
+---
+- name: Socle de la plateforme (WAF, base de données, accès Docker de la remédiation)
+  hosts: docker_hosts
+  become: true
+  roles:
+    - platform

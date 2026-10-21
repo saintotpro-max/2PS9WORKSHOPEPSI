@@ -1,0 +1,13 @@
+[Unit]
+Description=Pare-feu d'entrée de l'hôte (table nftables hostfw)
+After=network-pre.target
+Before=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/usr/sbin/nft -f /etc/hostfw.nft
+ExecStop=/usr/sbin/nft delete table inet hostfw
+
+[Install]
+WantedBy=multi-user.target

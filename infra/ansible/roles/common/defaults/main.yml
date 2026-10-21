@@ -1,0 +1,13 @@
+---
+common_packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - jq
+  - vim
+  - htop
+  - tcpdump
+  - systemd-timesyncd
+  # Intégration VMware : horloge recalée à la reprise après une mise en veille de
+  # l'hôte, arrêt propre des VM depuis vmrun
+  - open-vm-tools

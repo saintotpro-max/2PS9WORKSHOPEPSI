@@ -1,0 +1,16 @@
+# Clés et secrets déchiffrés : ne jamais versionner
+*.agekey
+keys.txt
+*.dec.yml
+*.dec.yaml
+.env
+*.pem
+id_*
+
+# Ansible
+*.retry
+.ansible/
+__pycache__/
+
+# Dossiers de dépôt temporaire
+temp/

@@ -16,3 +16,14 @@ nanogpt*
 
 services/*/.venv/
 .venv/
+
+# infra (collaborateur) : cles et secrets dechiffres jamais versionnes
+*.agekey
+keys.txt
+*.dec.yml
+*.dec.yaml
+*.pem
+id_*
+
+# source d'import original de l'infra : la copie canonique est infra/
+collègue/

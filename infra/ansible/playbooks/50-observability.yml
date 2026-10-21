@@ -1,0 +1,12 @@
+---
+- name: Pile d'observabilité (Prometheus, Alertmanager, Grafana, Loki, Alloy, exporters)
+  hosts: docker_hosts
+  become: true
+  roles:
+    - observability
+
+- name: Agents d'observabilité des autres hôtes
+  hosts: ips_hosts
+  become: true
+  roles:
+    - obs_agent

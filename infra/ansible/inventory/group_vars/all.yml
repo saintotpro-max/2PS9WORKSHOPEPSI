@@ -1,0 +1,38 @@
+---
+lan_cidr: 10.10.10.0/24
+pfsense_lan_ip: 10.10.10.1
+ansible_lan_ip: 10.10.10.10
+docker_lan_ip: 10.10.10.20
+ia_lan_ip: 10.10.10.30
+ips_admin_ip: 10.10.10.40
+
+# Versions épinglées des images d'observabilité
+obs_versions:
+  prometheus: v3.15.0
+  alertmanager: v0.34.1
+  grafana: 13.2.4
+  loki: 3.6.18
+  alloy: v1.21.0
+  node_exporter: v1.12.1
+  blackbox_exporter: v0.29.0
+  cadvisor: v0.60.6
+  socket_proxy: v0.5.0
+
+timezone: Europe/Paris
+
+# Versions épinglées de la plateforme
+platform_versions:
+  waf: 4.30.0-nginx-alpine-202610180210    # nginx + ModSecurity v3 + OWASP CRS 4.30
+  postgres: 17.11-trixie
+  postgres_exporter: v0.20.1
+  socket_proxy_ctrl: 1.13.1               # wollomatic/socket-proxy (liste blanche par regex)
+
+# Clé publique age (cf. .sops.yaml) : chiffre aussi les sauvegardes de la base.
+# Seul ra-ansible détient la clé privée.
+age_public_key: age1avh76jk24gvufsyvkvh5rx55kptsd4vkuxucua9uxrjytcyur47sxu67ht
+
+# Services applicatifs (équipe DEV) dont /health est sondé ; une panne déclenche
+# l'alerte ServiceApplicatifEnPanne puis le redémarrage du service par la remédiation.
+# Exemple : - {name: api-payment, health_url: "http://api-payment:8000/health"}
+platform_app_services:
+  - {name: paiement, health_url: "http://paiement:8000/health"}

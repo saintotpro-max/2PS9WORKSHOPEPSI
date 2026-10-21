@@ -1,0 +1,9 @@
+---
+# PC attaquant : page de participation (compteur + QR) et pilote de la vague de
+# charge bornée contre la plateforme du lab. Démonstration de résilience.
+# L'exposition Internet de la page (tunnel) est optionnelle : attack_tunnel_enabled.
+- name: PC attaquant (vague de charge, participation)
+  hosts: attackers
+  become: true
+  roles:
+    - attacker

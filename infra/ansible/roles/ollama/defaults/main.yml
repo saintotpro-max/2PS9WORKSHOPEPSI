@@ -1,0 +1,12 @@
+---
+ollama_version: "0.40.6"
+ollama_home: /var/lib/ollama
+ollama_url: "https://github.com/ollama/ollama/releases/download/v{{ ollama_version }}/ollama-linux-amd64.tar.zst"
+
+# Écoute sur le LAN : l'accès est restreint à ra-docker par le pare-feu de l'hôte (étape durcissement)
+ollama_listen: "{{ ia_lan_ip }}:11434"
+
+# Choix à confirmer avec l'équipe IA : <= 8B imposé par le sujet, CPU uniquement
+ollama_models:
+  - llama3.2:3b
+  - nomic-embed-text

@@ -1,0 +1,15 @@
+[Unit]
+Description=Participation RESILIENCE-ALPHA (compteur de la vague)
+After=network-online.target
+
+[Service]
+Environment=PORT={{ participation_port }}
+Environment=DECOMPTE_S={{ wave_decompte_s }}
+Environment=CLOUDFLARED_LOG={{ attack_dir }}/cloudflared.log
+Environment=ALPHA_PLATEFORME_URL=https://{{ platform_wan_ip }}
+ExecStart=/usr/bin/python3 {{ attack_dir }}/participation/app.py
+Restart=always
+User=sadmin
+
+[Install]
+WantedBy=multi-user.target

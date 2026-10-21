@@ -1,0 +1,29 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# Sauvegarde logique de la base de paiement, chiffrée avec age (clé publique uniquement :
+# une sauvegarde volée sur cet hôte est illisible sans la clé privée de ra-ansible).
+set -euo pipefail
+umask 077
+TS=$(date +%Y%m%d-%H%M%S)
+OUT={{ backup_dir }}/{{ platform_db_name }}-$TS.dump.age
+METRIC={{ textfile_dir }}/pg_backup.prom
+
+docker exec platform-db-1 pg_dump -U {{ platform_db_user }} -Fc {{ platform_db_name }} \
+  | age -r {{ age_public_key }} > "$OUT.tmp"
+mv "$OUT.tmp" "$OUT"
+
+# Rotation
+ls -1t {{ backup_dir }}/*.dump.age | tail -n +{{ backup_keep + 1 }} | xargs -r rm -f
+
+# Métrique pour Prometheus (collecteur textfile de node-exporter)
+cat > "$METRIC.tmp" <<METRICS
+# HELP pg_backup_last_success_timestamp_seconds Fin de la dernière sauvegarde réussie
+# TYPE pg_backup_last_success_timestamp_seconds gauge
+pg_backup_last_success_timestamp_seconds $(date +%s)
+# HELP pg_backup_last_size_bytes Taille de la dernière sauvegarde chiffrée
+# TYPE pg_backup_last_size_bytes gauge
+pg_backup_last_size_bytes $(stat -c %s "$OUT")
+METRICS
+chmod 0644 "$METRIC.tmp"          # lue par node-exporter (non root)
+mv "$METRIC.tmp" "$METRIC"
+echo "sauvegarde OK : $OUT"

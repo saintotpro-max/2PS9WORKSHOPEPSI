@@ -1,0 +1,5 @@
+# Les fichiers secrets/*.enc.yml sont chiffrés avec la clé age du nœud de contrôle (ra-ansible).
+# La clé publique est affichée par playbooks/00-control.yml.
+creation_rules:
+  - path_regex: secrets/.*\.enc\.ya?ml$
+    age: age1avh76jk24gvufsyvkvh5rx55kptsd4vkuxucua9uxrjytcyur47sxu67ht

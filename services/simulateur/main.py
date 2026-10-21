@@ -512,7 +512,9 @@ PARTICIPATION_HTML = """<!doctype html>
   <div class="decompte" id="decompte"></div>
   <button id="btn">Je rejoins la vague</button>
   <p class="note">Votre telephone ne fait que signaler votre presence : il n'envoie aucune
-  attaque. La charge est generee par notre machine, dans notre systeme fictif de laboratoire.</p>
+  attaque. La charge est generee par notre machine, dans notre systeme fictif de laboratoire.
+  Aucune donnee personnelle n'est collectee : un simple compteur, sans nom, sans adresse
+  mail, sans traceur, sans cookie.</p>
 </div>
 <script>
 const total = document.getElementById('total'), dec = document.getElementById('decompte'), btn = document.getElementById('btn');

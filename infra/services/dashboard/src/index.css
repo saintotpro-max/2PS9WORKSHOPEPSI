@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+/* Charte graphique du workshop */
+@theme {
+  --font-sans: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  --color-ink: #261e48;
+  --color-paper: #e4e6f3;
+  --color-lilac: #a1a6d4;
+  --color-ok: #15803d;
+  --color-warn: #c2410c;
+  --color-bad: #b91c1c;
+  --color-info: #1d4ed8;
+}
+
+body {
+  @apply bg-paper text-ink font-sans antialiased;
+}

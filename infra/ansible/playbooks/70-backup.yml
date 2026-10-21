@@ -1,0 +1,8 @@
+---
+- name: Sauvegardes chiffrées de la base de paiement
+  hosts: docker_hosts
+  become: true
+  vars_files:
+    - ../roles/platform/defaults/main.yml
+  roles:
+    - backup

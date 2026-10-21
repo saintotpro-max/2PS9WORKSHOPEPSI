@@ -10,6 +10,7 @@ init -10 python:
     import threading
     import time
     import urllib.error
+    import urllib.parse
     import urllib.request
 
     RACINE = os.path.abspath(os.path.join(config.basedir, ".."))
@@ -55,13 +56,62 @@ init -10 python:
             self.flux_bloques = []     # flux bloqués par le WAF ; vide = pas de WAF branché
             self.flux_total = 0
             self.verifications = []
+            self.incidents = []        # mode reel : incidents du vrai moteur (/status)
             self.arret_demande = False
             self.vague = None          # etat du compteur de participation (jauge, decompte)
             self.qr_vague = None       # chemin relatif du QR telecharge, ou None
             self.repetition = dict(passes=0, ok=0, en_cours=False)  # EX-12 : 10 passages sans intervention
             self.duel = None           # etat du duel autonome (attaquant/defenseur, raisons)
+            self.chat = {"hacker": [], "sentinelle": []}  # canal de conversation par persona
+            self.match = None          # etat du match in-tour : {tour, niveau, en_cours}
+            self.latences = []         # latence reelle des paiements (ms), pour la salle vivante
+            # Cible de l'attaque (IP/URL de la plateforme). Choisie au cockpit, elle sert
+            # a la fois a la supervision (HUD) et a la charge reelle (passee a ra-attacker).
+            self.cible = (self.cfg.get("plateforme") or {}).get("url", "")
 
     ETAT = Etat()
+
+    def cible_actuelle():
+        return ETAT.cible or (ETAT.cfg.get("plateforme") or {}).get("url", "") or ""
+
+    def dire(persona, texte):
+        """Ajoute une ligne au canal de conversation d'une IA (hacker/sentinelle).
+        Horodatee, dedoublonnee d'affilee, canal borne pour ne pas gonfler sans fin."""
+        texte = (texte or "").strip()
+        if not texte:
+            return
+        canal = ETAT.chat.setdefault(persona, [])
+        if canal and canal[-1]["texte"] == texte:
+            return
+        canal.append(dict(at=time.strftime("%H:%M:%S"), texte=texte))
+        del canal[:-30]
+
+    def canal(persona):
+        return ETAT.chat.get(persona, [])
+
+    def definir_cible(valeur):
+        """Change l'IP/URL attaquee depuis le cockpit. Normalise, met a jour la
+        supervision ET la charge, puis persiste dans config/interfaces.json pour que
+        le choix survive a un redemarrage (l'IP WAN de pfSense change selon le Wi-Fi)."""
+        valeur = (valeur or "").strip().rstrip("/")
+        if not valeur:
+            return cible_actuelle()
+        if "://" not in valeur:
+            valeur = "https://" + valeur            # defaut HTTPS (WAF autosigne)
+        ETAT.cible = valeur
+        if isinstance(ETAT.cfg.get("plateforme"), dict):
+            ETAT.cfg["plateforme"]["url"] = valeur   # le HUD surveille la nouvelle cible
+        ETAT.chrono_debut = ETAT.chrono_fin = None   # repart proprement sur la nouvelle cible
+        try:
+            with open(CHEMIN_CONFIG, encoding="utf-8") as f:
+                disque = json.load(f)
+            if isinstance(disque.get("plateforme"), dict):
+                disque["plateforme"]["url"] = valeur
+            with open(CHEMIN_CONFIG, "w", encoding="utf-8") as f:
+                json.dump(disque, f, indent=2, ensure_ascii=False)
+        except Exception:
+            pass                                     # persistance best-effort
+        return valeur
 
     def http(methode, base, chemin, corps=None, jeton=None, timeout=3.0, trace=False):
         """Appel HTTP. Renvoie toujours un dict : code, data, mode, erreur.
@@ -74,6 +124,15 @@ init -10 python:
             del ETAT.flux[:-6]
         return r
 
+    # Le WAF du lab expose HTTPS avec un certificat auto-signe : TLS accepte sans
+    # verification de chaine (reseau ferme du lab, cf. infra/cockpit/README.md).
+    _CTX_TLS = None
+    try:
+        import ssl
+        _CTX_TLS = ssl._create_unverified_context()
+    except Exception:
+        _CTX_TLS = None
+
     def http_brut(methode, base, chemin, corps=None, jeton=None, timeout=3.0):
         donnees = json.dumps(corps).encode("utf-8") if corps is not None else None
         requete = urllib.request.Request(base.rstrip("/") + chemin, data=donnees, method=methode,
@@ -81,7 +140,8 @@ init -10 python:
         if jeton:
             requete.add_header("Authorization", "Bearer " + jeton)
         try:
-            with urllib.request.urlopen(requete, timeout=timeout) as r:
+            contexte = _CTX_TLS if str(base).startswith("https") else None
+            with urllib.request.urlopen(requete, timeout=timeout, context=contexte) as r:
                 brut = r.read().decode("utf-8")
                 return dict(code=r.status, data=json.loads(brut) if brut else None,
                             mode=r.headers.get("X-Mode"), erreur=None)
@@ -93,6 +153,17 @@ init -10 python:
             return dict(code=e.code, data=data, mode=e.headers.get("X-Mode"), erreur=None)
         except Exception as e:
             return dict(code=None, data=None, mode=None, erreur=str(e))
+
+    def prom_valeur(url_base, requete):
+        """Une seule valeur depuis l'API Prometheus exposee par le dashboard (mode reel).
+        None si injoignable ou sans donnee : l'UI garde son dernier etat connu."""
+        r = http("GET", url_base, "/query?query=" + urllib.parse.quote(requete, safe=""), timeout=1.5)
+        if r["code"] != 200 or not isinstance(r["data"], dict):
+            return None
+        try:
+            return float(r["data"]["data"]["result"][0]["value"][1])
+        except Exception:
+            return None
 
     def boucle_sante():
         """Interroge la santé toutes les 2 s et mesure la durée réelle de la reprise."""
@@ -115,7 +186,12 @@ init -10 python:
                     ETAT.alerte = liste[-1] if liste else None
                 ev = http("GET", ETAT.cfg["moteur"]["url"], "/events", timeout=1.5)
                 if ev["code"] == 200 and ev["data"]:
-                    ETAT.evenements = ev["data"].get("events", [])[-40:]
+                    # Deux formes supportees : enveloppe du simulateur {events:[...]}
+                    # et liste brute du moteur reel [{ts, incident, step, message, ...}].
+                    if isinstance(ev["data"], list):
+                        ETAT.evenements = ev["data"][-40:]
+                    else:
+                        ETAT.evenements = ev["data"].get("events", [])[-40:]
                 cp = http("GET", ETAT.cfg["moteur"]["url"], "/components", timeout=1.5)
                 if cp["code"] == 200 and cp["data"]:
                     ETAT.composants = cp["data"].get("components", [])
@@ -135,19 +211,51 @@ init -10 python:
                     ETAT.vague = pa["data"]
                     if ETAT.qr_vague is None and rafraichir_qr_vague(det["url"]):
                         ETAT.qr_vague = "cache/vague_qr.png"
+                if ETAT.qr_vague is None and ETAT.vague is None:
+                    tunnel = (ETAT.cfg.get("attaque") or {}).get("tunnel_url")
+                    if tunnel:
+                        pr = http("GET", tunnel, "/participation/etat", timeout=1.5)
+                        if pr["code"] == 200 and pr["data"]:
+                            ETAT.vague = pr["data"]
+                            if rafraichir_qr_vague(tunnel):
+                                ETAT.qr_vague = "cache/vague_qr.png"
+                # ---- Mode reel (moteur INFRA) : /status + Prometheus via le dashboard ----
+                if (ETAT.cfg.get("moteur") or {}).get("mode") == "reel":
+                    st = http("GET", ETAT.cfg["moteur"]["url"], "/status", timeout=1.5)
+                    if st["code"] == 200 and isinstance(st["data"], dict):
+                        ETAT.incidents = (st["data"].get("recent") or [])[:10]
+                    detr = ETAT.cfg.get("detection") or {}
+                    if detr.get("mode") == "reel" and detr.get("url"):
+                        v = prom_valeur(detr["url"], "max(ips_attack_probability_max)")
+                        if v is not None:
+                            # seuil = blocage declare par l'INFRA (contrat section 6, Q8)
+                            ETAT.scores = (ETAT.scores + [dict(score=v, threshold=0.9)])[-60:]
+                        b = prom_valeur(detr["url"], 'sum(increase(ips_blocks_total{mode="enforced"}[15m]))')
+                        if b is not None:
+                            ETAT.flux_total = int(b)
             else:
                 ETAT.joignable = False
             time.sleep(ETAT.cfg.get("sondage_s", 2.0))
 
     def rafraichir_qr_vague(base):
-        """Telecharge le QR du compteur (simulateur) dans game/cache pour l'affichage au cockpit.
-        Le QR encode l'URL publique a scanner (ALPHA_VAGUE_URL cote simulateur, sinon l'URL locale)."""
+        """Telecharge le QR du compteur dans game/cache pour l'affichage au cockpit.
+        Le QR encode l'URL publique a scanner (ALPHA_VAGUE_URL cote simulateur, l'URL
+        du tunnel cote INFRA). Deux chemins possibles : /participation/qr.png
+        (simulateur) et /qrcode.png (service INFRA sur ra-attacker)."""
+        donnees = None
+        for chemin_qr in ("/participation/qr.png", "/qrcode.png"):
+            try:
+                with urllib.request.urlopen(base.rstrip("/") + chemin_qr, timeout=3.0) as r:
+                    donnees = r.read()
+                break
+            except Exception:
+                donnees = None
+        if not donnees:
+            return False
         try:
             dossier = os.path.join(config.gamedir, "cache")
             if not os.path.isdir(dossier):
                 os.makedirs(dossier)
-            with urllib.request.urlopen(base.rstrip("/") + "/participation/qr.png", timeout=3.0) as r:
-                donnees = r.read()
             with open(os.path.join(dossier, "vague_qr.png"), "wb") as f:
                 f.write(donnees)
             return True
@@ -155,14 +263,27 @@ init -10 python:
             return False
 
     def armer_vague(duree_s=30):
-        """Arme le decompte : au top, l'operateur lance attack/arsenal/vague.py (machine de l'equipe)."""
+        """Arme le decompte : au top, l'operateur lance la vague (machine de l'equipe).
+        Compteur sur la detection (simulateur) ; en reel, repli sur le tunnel public."""
         det = ETAT.cfg.get("detection", ETAT.cfg["moteur"])
-        return http("POST", det["url"], "/participation/armer", dict(duree_s=duree_s), timeout=2.0)
+        r = http("POST", det["url"], "/participation/armer", dict(duree_s=duree_s), timeout=2.0)
+        if r["code"] == 200:
+            return r
+        tunnel = (ETAT.cfg.get("attaque") or {}).get("tunnel_url")
+        if tunnel:
+            return http("POST", tunnel, "/participation/armer", dict(duree_s=duree_s), timeout=2.0)
+        return r
 
     def reset_vague():
         det = ETAT.cfg.get("detection", ETAT.cfg["moteur"])
         ETAT.qr_vague = None
-        return http("POST", det["url"], "/participation/reset", timeout=2.0)
+        r = http("POST", det["url"], "/participation/reset", timeout=2.0)
+        if r["code"] == 200:
+            return r
+        tunnel = (ETAT.cfg.get("attaque") or {}).get("tunnel_url")
+        if tunnel:
+            return http("POST", tunnel, "/participation/reset", timeout=2.0)
+        return r
 
     def pont_demarrer():
         if not ETAT.demarre:
@@ -197,9 +318,14 @@ init -10 python:
         def duree(self):
             return (self.fin or time.time()) - self.debut
 
+    def identifiants_demo():
+        """Compte de demonstration. En reel (derriere le WAF), le mot de passe vient de
+        l'environnement (secret INFRA injecte, hors depot) : ALPHA_DEMO_PASSWORD."""
+        return dict(username="demo", password=os.environ.get("ALPHA_DEMO_PASSWORD", "demo"))
+
     def payer():
         base = ETAT.cfg["plateforme"]["url"]
-        jeton = http("POST", base, "/auth/token", dict(username="demo", password="demo"), trace=True)
+        jeton = http("POST", base, "/auth/token", identifiants_demo(), trace=True)
         if jeton["code"] != 200:
             ETAT.tx_ko += 1
             return jeton
@@ -240,8 +366,15 @@ init -10 python:
     NIVEAUX = [(1, "Saturer les paiements"), (2, "Épuiser les ressources"), (3, "Saturer le réseau"), (4, "Injecter une requête")]
 
     def _lancer_processus(commande):
-        """Lance l'outil dans son propre groupe de processus pour pouvoir l'arrêter avec ses enfants."""
-        options = dict(stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, cwd=RACINE)
+        """Lance l'outil dans son propre groupe de processus pour pouvoir l'arrêter avec ses enfants.
+        La cible choisie au cockpit est transmise par l'environnement : RA_CIBLE (vague
+        reelle via ra-attacker) et ALPHA_PLATEFORME_URL (scripts de charge directs)."""
+        env = os.environ.copy()
+        cible = cible_actuelle()
+        if cible:
+            env["RA_CIBLE"] = cible
+            env["ALPHA_PLATEFORME_URL"] = cible
+        options = dict(stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True, cwd=RACINE, env=env)
         if os.name == "nt":
             options["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
         else:
@@ -262,7 +395,11 @@ init -10 python:
 
     def _executer_niveau(niveau):
         cfg = ETAT.cfg["attaque"]
-        script = os.path.join(RACINE, cfg["dossier"], "niveau-%d.py" % niveau)
+        # Niveau reel (arsenal, vraie charge sur la plateforme) ou simule (simulateur).
+        dossier = cfg["dossier"]
+        if niveau in cfg.get("niveaux_reels", []):
+            dossier = cfg.get("dossier_reel", dossier)
+        script = os.path.join(RACINE, dossier, "niveau-%d.py" % niveau)
         code = None
         try:
             ETAT.processus = _lancer_processus([cfg.get("python", "python3"), script])
@@ -286,7 +423,10 @@ init -10 python:
             ETAT.terminal_etat = "fini"
 
     def declarer(type_, detail):
-        """Le poste attaquant déclare son action pour l'affichage (jamais à la place de l'alerte)."""
+        """Le poste attaquant déclare son action pour l'affichage (jamais à la place de l'alerte).
+        Mechanisme du simulateur : en reel, le journal du vrai moteur fait foi, on n'ecrit pas dedans."""
+        if (ETAT.cfg.get("moteur") or {}).get("mode") == "reel":
+            return
         def envoyer():
             http("POST", ETAT.cfg["moteur"]["url"], "/events",
                  dict(type=type_, component="payment-api", detail=detail, source="attaquant"), timeout=2.0)
@@ -333,6 +473,114 @@ init -10 python:
             minuteur = threading.Timer(2.0, lambda: _tuer_arbre(p, force=True) if p.poll() is None else None)
             minuteur.daemon = True
             minuteur.start()
+
+    # ---- Pilote du MATCH in-tour : les deux IA enchainent, l'operateur garde la main ------
+    def match_en_cours():
+        return bool(ETAT.match and ETAT.match.get("en_cours"))
+
+    def _flux_paiements():
+        """Flux de paiements legitimes en fond pendant le match (~8/s). TX OK/KO = vrais
+        appels ; c'est ce flux que l'attaque fait echouer -> degradation reelle et visible."""
+        base = ETAT.cfg["plateforme"]["url"]
+        j = http("POST", base, "/auth/token", identifiants_demo())
+        jeton = (j.get("data") or {}).get("access_token") if j["code"] == 200 else None
+        while match_en_cours():
+            t0 = time.time()
+            r = http("POST", base, "/transactions",
+                     dict(amount_cents=1250, currency="EUR", payer="client-fictif", payee="boutique-fictive"),
+                     jeton=jeton, timeout=3.0)
+            ETAT.latences.append(int((time.time() - t0) * 1000))   # latence vecue, vrai signal
+            del ETAT.latences[:-60]
+            if r["code"] == 201:
+                ETAT.tx_ok += 1
+            else:
+                ETAT.tx_ko += 1
+                if r["code"] in (401, None):      # jeton expire ou injoignable : re-auth
+                    j = http("POST", base, "/auth/token", identifiants_demo())
+                    jeton = (j.get("data") or {}).get("access_token") if j["code"] == 200 else None
+            time.sleep(0.12)
+
+    def _detecteur_match():
+        """Detecteur-seuil local (perimetre dev, pas de ML) : quand la LATENCE paiements
+        vecue monte (vrai signal : file d'attente sous charge) ou que la plateforme se
+        degrade, envoie une VRAIE alerte DoS au moteur (recommande block_source, l'action
+        qui reussit en local) -> le moteur decide, la Sentinelle rapporte sa vraie decision."""
+        alerte_envoyee = False
+        cible = (ETAT.cfg.get("moteur") or {}).get("cible", "alpha-paiement")
+        while match_en_cours():
+            lat = latence_pic()
+            if (lat > 200 or ETAT.sante in ("degraded", "down")) and not alerte_envoyee:
+                reco = dict(summary="Saturation des paiements detectee",
+                            suggested_action="block_source", confidence=0.9)
+                http("POST", ETAT.cfg["moteur"]["url"], "/alerts", dict(
+                    source="detecteur-local", kind="dos", severity="high", score=0.9,
+                    target=cible, detail="Latence paiements %d ms sous charge" % lat,
+                    recommendation=reco), timeout=3.0)
+                # Rebranche la reco de la Sentinelle sur le vrai signal (le moteur reel ne
+                # sert pas GET /alerts : on pose l'alerte localement pour l'affichage).
+                ETAT.alerte = dict(kind="dos", recommendation=reco)
+                alerte_envoyee = True
+            elif lat < 60 and ETAT.sante == "ok":
+                alerte_envoyee = False
+                ETAT.alerte = None
+            time.sleep(0.5)
+
+    def demarrer_match():
+        """Lance le match des deux IA dans la tour, en tache de fond (pas d'ecran modal).
+        Le HACKER choisit et lance de vraies attaques ; la SENTINELLE raconte la decision.
+        En fond : un flux de vrais paiements + un detecteur-seuil (boucle reelle locale)."""
+        if match_en_cours():
+            return
+        if ETAT.terminal_etat == "en_cours":
+            arreter_script()   # un match part d'un etat propre : on coupe l'attaque en cours
+        ETAT.match = dict(en_cours=True, tour=0, niveau=None)
+        ETAT.chat = {"hacker": [], "sentinelle": []}
+        ETAT.tx_ok = 0
+        ETAT.tx_ko = 0
+        for cible_fil in (_boucle_match, _flux_paiements, _detecteur_match):
+            t = threading.Thread(target=cible_fil)
+            t.daemon = True
+            t.start()
+
+    def arreter_match():
+        """STOP du match : coupe la boucle et l'outil en cours."""
+        if ETAT.match:
+            ETAT.match["en_cours"] = False
+        arreter_script()
+
+    def _attendre(predicat, limite_s):
+        fin = time.time() + limite_s
+        while time.time() < fin and match_en_cours() and predicat():
+            time.sleep(0.3)
+
+    def _boucle_match():
+        """Un tour = le Hacker choisit (LLM) -> vraie attaque -> la Sentinelle ANALYSE le flux
+        PENDANT l'attaque et pose sa contre-mesure, qui COUPE l'attaque (pas une minuterie).
+        S'arrete au bout des 4 tactiques ou sur STOP."""
+        # Exactement 4 tours (un par tactique, escalade 1->4), puis fin nette. Le niveau
+        # suggere = le numero du tour, pour que les attaques different et que ca progresse.
+        derniere_defense = ""
+        for tour in (1, 2, 3, 4):
+            if not match_en_cours():
+                break
+            _attendre(lambda: ETAT.terminal_etat == "en_cours", 3.0)  # terminal libre avant le tour
+            niveau, raison = hacker_prochain(tour, derniere_defense)  # le Hacker riposte a la defense
+            ETAT.match["tour"] = tour
+            ETAT.match["niveau"] = niveau
+            dire("hacker", raison)
+            lancer_niveau(niveau)
+            # Laisse la charge tourner ~8 s : la latence et les requetes montent, la
+            # Sentinelle a de la vraie matiere a analyser avant de decider.
+            _attendre(lambda: ETAT.terminal_etat == "en_cours", 8.0)
+            derniere_defense = sentinelle_prochain(niveau)   # la Sentinelle decide, en reponse
+            dire("sentinelle", derniere_defense)
+            if match_en_cours() and ETAT.terminal_etat == "en_cours":
+                arreter_script()                 # contre-mesure : la defense coupe l'attaque
+            _attendre(lambda: ETAT.terminal_etat == "en_cours", 6.0)
+            _attendre(lambda: ETAT.chrono_fin is None, 3.0)   # laisse mesurer la reprise
+        if ETAT.match:
+            ETAT.match["en_cours"] = False
+            dire("sentinelle", "Match termine : le service a tenu, zero intervention humaine.")
 
     def sur(texte):
         """Échappe le texte venu de l'extérieur avant affichage."""

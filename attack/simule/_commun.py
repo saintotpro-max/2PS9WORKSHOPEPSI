@@ -48,7 +48,9 @@ def _poster(base: str, chemin: str, corps: dict) -> None:
 def lancer(niveau: int, nom: str) -> int:
     chemin = os.environ.get("ALPHA_CONFIG") or os.path.join(RACINE, "config", "interfaces.json")
     with open(chemin, encoding="utf-8") as f:
-        url = json.load(f)["plateforme"]["url"]
+        conf = json.load(f)
+    # L'attaque simulee vise le simulateur (routes /simulation/*), pas la vraie plateforme.
+    url = conf.get("attaque", {}).get("cible_simulee") or conf["plateforme"]["url"]
     hote_port = url.split("//")[-1].split("/")[0]
     hote, _, port = hote_port.partition(":")
     print("[SIMULE] niveau %d : %s" % (niveau, nom), flush=True)

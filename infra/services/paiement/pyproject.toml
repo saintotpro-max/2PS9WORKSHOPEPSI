@@ -1,0 +1,6 @@
+[project]
+name = "paiement-resilience-alpha"
+version = "0.1.0"
+description = "Plateforme de paiement reelle (fausse monnaie) RESILIENCE-ALPHA"
+requires-python = ">=3.11"
+dependencies = ["fastapi", "uvicorn"]

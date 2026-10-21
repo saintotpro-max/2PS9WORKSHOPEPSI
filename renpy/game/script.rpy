@@ -101,32 +101,3 @@ label scenario:
 
     call screen s_epilogue
     jump titre
-
-
-label autonomie:
-    # Duel autonome depuis l'ecran du Hacker : l'attaquant enchaine ses tactiques (1 -> 4),
-    # la defense reagit seule, tout se voit sur l'ecran du duel. ZERO-TOUCH.
-    $ ETAT.tx_ok = 0
-    $ ETAT.tx_ko = 0
-    $ duel_reset()
-    python:
-        # Duree de lecture minimale par tour : plus longue en mode reel pour laisser le
-        # modele repondre (~14 s) ; courte sinon. Reglable via cfg["duel_s"].
-        _dwell = 16.0 if duel_ia_active() else float(ETAT.cfg.get("duel_s", 7.0))
-        for _niv, _coul, _nom, _quoi, _regardez in CAMPAGNE:
-            ETAT.duel["tour"] = _niv
-            ETAT.duel["nom"] = _nom
-            ETAT.duel["raison"] = duel_raison(_niv)
-            ETAT.duel["def_raison"] = ""
-            duel_ia_async(_niv)
-            duel_defense_async(_niv)
-            if _niv != 4:
-                ETAT.chrono_debut = None
-                ETAT.chrono_fin = None
-            lancer_niveau(_niv)
-            son_attaque(_niv)
-            renpy.call_screen("s_duel", _coul, _niv, _dwell)
-            jouer(SON_REPRISE)
-        ETAT.duel["fini"] = True
-    call screen s_epilogue
-    jump titre

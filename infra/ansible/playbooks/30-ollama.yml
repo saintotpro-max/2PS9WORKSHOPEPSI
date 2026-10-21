@@ -1,0 +1,6 @@
+---
+- name: LLM local pour l'assistant RAG
+  hosts: ia_hosts
+  become: true
+  roles:
+    - ollama

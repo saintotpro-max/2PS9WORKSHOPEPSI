@@ -1,0 +1,180 @@
+# {{ ansible_managed }}
+# Plateforme RESILIENCE-ALPHA (ra-docker). L'INFRA fournit le socle ; les services DEV
+# (frontend, api-payment, auth, ml, remediation, dashboard) s'ajoutent sur les mêmes réseaux.
+#
+#   front : WAF <-> services exposés (frontend, api-payment, auth, dashboard)
+#   back  : services métier <-> base de données          (internal : aucune sortie)
+#   ctrl  : remédiation <-> accès Docker filtré          (internal : aucune sortie)
+#   obs   : supervision (réseau de la pile obs)
+name: platform
+
+networks:
+  front:
+    name: front
+  back:
+    name: back
+    internal: true
+  ctrl:
+    name: ctrl
+    internal: true
+  obs:
+    name: obs
+    external: true
+
+volumes:
+  db-data:
+  paiement-data:
+  remediation-data:
+
+services:
+  # Seul point d'entrée : nginx + ModSecurity + OWASP CRS, HTTPS (certificat autosigné du lab)
+  waf:
+    image: owasp/modsecurity-crs:{{ platform_versions.waf }}
+    environment:
+      SERVER_NAME: _
+      PORT: "8080"
+      SSL_PORT: "8443"
+      ACCESSLOG: /dev/stdout
+      ERRORLOG: /dev/stderr
+      LOGLEVEL: warn
+      SERVER_HEADER: ""
+      MODSEC_RULE_ENGINE: "on"
+      MODSEC_AUDIT_ENGINE: RelevantOnly
+      MODSEC_AUDIT_LOG: /dev/stdout
+      MODSEC_AUDIT_LOG_FORMAT: JSON
+      MODSEC_RESP_BODY_ACCESS: "off"
+      BLOCKING_PARANOIA: "{{ waf_paranoia }}"
+      ANOMALY_INBOUND: "{{ waf_anomaly_inbound }}"
+    volumes:
+      - ./waf/default.conf.template:/etc/nginx/templates/conf.d/default.conf.template:ro
+      - ./waf/proxy_dynamic.conf.template:/etc/nginx/templates/includes/proxy_dynamic.conf.template:ro
+      - ./waf/50x.html:/usr/share/nginx/html/50x.html:ro
+      - ./waf/htpasswd:/etc/nginx/htpasswd:ro
+      - ./waf/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf:/etc/modsecurity.d/owasp-crs/rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf:ro
+      - ./waf/RESPONSE-999-EXCLUSION-RULES-AFTER-CRS.conf:/etc/modsecurity.d/owasp-crs/rules/RESPONSE-999-EXCLUSION-RULES-AFTER-CRS.conf:ro
+    ports:
+      - "{{ docker_lan_ip }}:80:8080"
+      - "{{ docker_lan_ip }}:443:8443"
+    networks: [front, obs]
+    restart: unless-stopped
+
+  db:
+    image: postgres:{{ platform_versions.postgres }}
+    env_file: db.env
+    environment:
+      POSTGRES_DB: {{ platform_db_name }}
+      POSTGRES_USER: {{ platform_db_user }}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    shm_size: 128mb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ platform_db_user }} -d {{ platform_db_name }}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [back]
+    restart: unless-stopped
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:{{ platform_versions.postgres_exporter }}
+    env_file: db-exporter.env
+    depends_on:
+      db: {condition: service_healthy}
+    networks: [back, obs]
+    restart: unless-stopped
+
+  # Accès Docker réservé au moteur de remédiation, en liste blanche stricte :
+  # lister les conteneurs (GET) et en redémarrer un (POST .../restart). Tout le reste
+  # (création, exec, images, volumes…) est refusé, et seul le conteneur
+  # « remediation » peut se connecter.
+  socket-proxy-ctrl:
+    image: wollomatic/socket-proxy:{{ platform_versions.socket_proxy_ctrl }}
+    command:
+      - -listenip=0.0.0.0
+      - -allowfrom=remediation
+      - '-allowGET=/v1\..{1,2}/containers/json'
+      - '-allowPOST=/v1\..{1,2}/containers/[a-zA-Z0-9_.-]+/restart'
+      - -logjson
+      - -watchdoginterval=30
+      - -stoponwatchdog
+    user: "65534:{{ docker_gid }}"
+    volumes: [/var/run/docker.sock:/var/run/docker.sock:ro]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    networks: [ctrl]
+    restart: unless-stopped
+
+  # Moteur de remédiation : alertes -> décision -> redémarrage -> vérification.
+  # Seul service autorisé à piloter Docker, et uniquement via socket-proxy-ctrl.
+  remediation:
+    build: ./services/remediation
+    env_file: remediation.env       # jeton partagé avec Alertmanager (SOPS)
+    environment:
+      DOCKER_HOST: tcp://socket-proxy-ctrl:2375
+      PROMETHEUS_URL: http://prometheus:9090
+      COMPOSE_PROJECT: platform
+      DRY_RUN: "{{ remediation_dry_run | string | lower }}"
+    volumes:
+      - ./services/remediation/rules.yml:/config/rules.yml:ro
+      - remediation-data:/data          # chronologie des incidents (persistante)
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    depends_on: [socket-proxy-ctrl]
+    networks: [ctrl, obs]
+    restart: unless-stopped
+
+  # Dashboard de supervision (React + Tailwind), servi sous /dashboard/ par le WAF
+  dashboard:
+    build: ./services/dashboard
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    networks: [front, obs]
+    restart: unless-stopped
+
+  # Sonde HTTP des services applicatifs (configuration par défaut : module http_2xx)
+  blackbox-front:
+    image: prom/blackbox-exporter:{{ obs_versions.blackbox_exporter }}
+    read_only: true
+    networks: [front, obs]
+    restart: unless-stopped
+
+  # Plateforme de paiement (équipe DEV) : frontal, authentification et transactions.
+  # Données SQLite sur le volume paiement-data ; comptes issus des secrets SOPS.
+  paiement:
+    build: ./services/paiement
+    env_file: paiement.env
+    environment:
+      ALPHA_DB: /data/paiement.db
+    # Ressources plafonnées : une charge légère et bornée suffit à saturer le service
+    # (démonstration de reprise ; voir paiement_cpus / paiement_mem dans les variables).
+    cpus: {{ paiement_cpus }}
+    mem_limit: {{ paiement_mem }}
+    volumes:
+      - paiement-data:/data
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    networks: [front, obs]
+    restart: unless-stopped
+
+  # Sonde transactionnelle : un vrai paiement de test toutes les 5 s, par le WAF.
+  # txn_probe_success = critère de reprise du moteur de remédiation et du dashboard.
+  txn-probe:
+    build: ./services/txn-probe
+    env_file: txn-probe.env
+    environment:
+      TARGET: https://waf:8443
+      TXN_USER: sonde
+      INTERVAL: "5"
+      TIMEOUT: "2"           # SLO : un paiement de test > 2 s est compté en échec
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    depends_on: [waf, paiement]
+    networks: [front, obs]
+    restart: unless-stopped

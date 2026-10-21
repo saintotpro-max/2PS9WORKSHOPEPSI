@@ -1,0 +1,6 @@
+---
+- name: Redémarrer le WAF
+  community.docker.docker_compose_v2:
+    project_src: "{{ platform_dir }}"
+    services: [waf]
+    state: restarted

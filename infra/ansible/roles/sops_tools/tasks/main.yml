@@ -1,0 +1,36 @@
+---
+- name: Installer age
+  ansible.builtin.apt:
+    name: age
+    state: present
+    update_cache: true
+  become: true
+
+- name: Installer sops {{ sops_version }}
+  ansible.builtin.apt:
+    deb: "{{ sops_deb_url }}"
+  become: true
+
+- name: Dossier de la clé age
+  ansible.builtin.file:
+    path: "{{ age_key_file | dirname }}"
+    state: directory
+    mode: "0700"
+
+# umask 077 : la clé est créée directement en 0600, sans tâche chmod séparée
+- name: Générer la clé age (une seule fois)
+  ansible.builtin.shell: umask 077 && age-keygen -o {{ age_key_file }}
+  args:
+    creates: "{{ age_key_file }}"
+
+# En mode --check la clé n'existe pas encore : on saute la lecture
+- name: Lire la clé publique age
+  ansible.builtin.command: age-keygen -y {{ age_key_file }}
+  register: age_pub
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Clé publique à reporter dans .sops.yaml
+  ansible.builtin.debug:
+    msg: "{{ age_pub.stdout }}"
+  when: not ansible_check_mode

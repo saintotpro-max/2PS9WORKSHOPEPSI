@@ -1,0 +1,13 @@
+---
+# Outillage du nœud de contrôle : collections Ansible, sops + age pour les secrets du dépôt
+- name: Préparer le nœud de contrôle
+  hosts: control
+  tasks:
+    - name: Collections Ansible (pfsensible, sops, docker…)
+      ansible.builtin.command: ansible-galaxy collection install -r {{ playbook_dir }}/../requirements.yml
+      register: galaxy
+      changed_when: "'was installed successfully' in galaxy.stdout"
+
+    - name: Outils de chiffrement
+      ansible.builtin.include_role:
+        name: sops_tools

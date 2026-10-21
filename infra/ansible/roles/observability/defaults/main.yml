@@ -1,0 +1,5 @@
+---
+obs_dir: /opt/obs
+obs_retention: 7d
+alloy_loki_url: http://loki:3100/loki/api/v1/push
+alloy_docker_host: tcp://socket-proxy:2375

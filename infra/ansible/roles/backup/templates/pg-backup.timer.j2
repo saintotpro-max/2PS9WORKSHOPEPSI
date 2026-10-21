@@ -1,0 +1,10 @@
+[Unit]
+Description=Sauvegarde de la base de paiement ({{ backup_schedule }})
+
+[Timer]
+OnCalendar={{ backup_schedule }}
+Persistent=true
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target

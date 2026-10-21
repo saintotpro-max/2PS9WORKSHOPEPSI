@@ -1,0 +1,13 @@
+[Unit]
+Description=Table nftables de la sonde IPS
+After=network-online.target
+Before=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/usr/sbin/nft -f /etc/ips/ips.nft
+ExecStop=/usr/sbin/nft delete table bridge ips
+
+[Install]
+WantedBy=multi-user.target

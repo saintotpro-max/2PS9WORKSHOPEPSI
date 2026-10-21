@@ -1,0 +1,50 @@
+@startuml
+skinparam componentStyle rectangle
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName Sans
+skinparam component {
+  BackgroundColor<<fait>> #C8E6C9
+  BorderColor<<fait>> #2E7D32
+  BackgroundColor<<infra>> #FFE0B2
+  BorderColor<<infra>> #E65100
+  BackgroundColor<<ia>> #BBDEFB
+  BorderColor<<ia>> #1565C0
+}
+
+title RESILIENCE ALPHA : points d'integration\nvert = fait   orange = INFRA   bleu = IA
+
+package "Fait (dev, cyber, jeu)" {
+  [Jeu et cockpit Ren'Py] <<fait>> as JEU
+  [Plateforme de paiement] <<fait>> as PLAT
+  [Moteur de remediation] <<fait>> as MOT
+  [Arsenal d'attaque] <<fait>> as ARS
+}
+
+package "INFRA" {
+  [Deploiement Docker + compose] <<infra>> as DEP
+  [Collecte Prometheus + Loki] <<infra>> as COL
+  [WAF / IPS qui bloque les flux] <<infra>> as WAF
+  [Actionneur : Docker restreint\nou Ansible + relais escalade] <<infra>> as ACT
+  [Tunnel + page QR du public] <<infra>> as QR
+  [pfSense : WAN 443 + tunnel] <<infra>> as PF
+}
+
+package "IA" {
+  [Detecteur ML : score + alertes] <<ia>> as DET
+  [Assistant RAG] <<ia>> as RAG
+}
+
+PLAT --> COL : expose /metrics + logs JSON
+DET --> MOT : POST /alerts (+ recommandation)
+DET --> JEU : /scores pour la courbe
+JEU --> RAG : POST /assistant/ask
+MOT --> ACT : demande restart ou block\n(jeton cote serveur)
+WAF --> JEU : liste des flux bloques
+ARS --> PLAT : attaque, charge reelle
+QR --> PLAT : charge du public (DDoS controle)
+DEP ..> PLAT : met en conteneur
+DEP ..> MOT : met en conteneur
+PF ..> JEU : rend la plateforme joignable
+
+@enduml

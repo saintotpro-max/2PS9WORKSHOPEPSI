@@ -1,0 +1,29 @@
+---
+- name: Dossier de l'agent
+  ansible.builtin.file:
+    path: "{{ obs_agent_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Configuration de l'agent
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ obs_agent_dir }}/{{ item.dest }}"
+    mode: "0644"
+  loop:
+    - {src: compose.yml.j2, dest: compose.yml}
+    - {src: "{{ role_path }}/../observability/templates/config.alloy.j2", dest: config.alloy}
+  register: agent_cfg
+
+- name: Démarrer l'agent
+  community.docker.docker_compose_v2:
+    project_src: "{{ obs_agent_dir }}"
+    state: present
+    pull: missing
+
+# Configuration montée en volume : redémarrage si elle a changé
+- name: Prendre en compte une nouvelle configuration
+  community.docker.docker_compose_v2:
+    project_src: "{{ obs_agent_dir }}"
+    state: restarted
+  when: agent_cfg.changed

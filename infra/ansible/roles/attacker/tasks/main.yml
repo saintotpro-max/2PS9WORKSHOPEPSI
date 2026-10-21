@@ -1,0 +1,120 @@
+---
+- name: Paquets (QR code, outils)
+  ansible.builtin.apt:
+    name: [qrencode, curl]
+    state: present
+  become: true
+
+- name: Dossiers
+  ansible.builtin.file:
+    path: "{{ attack_dir }}/{{ item }}"
+    state: directory
+    owner: sadmin
+    mode: "0755"
+  become: true
+  loop: ["", participation]
+
+- name: Code de la vague et de la participation
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ attack_dir }}/{{ item.dest }}"
+    owner: sadmin
+    mode: "0644"
+  become: true
+  register: attack_code
+  loop:
+    - {src: "{{ playbook_dir }}/../../attack/_commun.py", dest: _commun.py}
+    - {src: "{{ playbook_dir }}/../../attack/coureur.py", dest: coureur.py}
+    - {src: "{{ playbook_dir }}/../../attack/scan.py", dest: scan.py}
+    - {src: "{{ playbook_dir }}/../../services/participation/app.py", dest: participation/app.py}
+
+- name: Variables d'environnement de la charge
+  ansible.builtin.template:
+    src: attack.env.j2
+    dest: "{{ attack_dir }}/attack.env"
+    owner: sadmin
+    mode: "0644"
+  become: true
+  register: attack_env
+
+- name: Services systemd de base (participation, pilote de vague)
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    mode: "0644"
+  become: true
+  loop: [participation.service, coureur-vague.service]
+
+- name: Outil opérateur ra-vague
+  ansible.builtin.template:
+    src: ra-vague.j2
+    dest: /usr/local/bin/ra-vague
+    mode: "0755"
+  become: true
+
+- name: Outil opérateur ra-scan (capture de reconnaissance)
+  ansible.builtin.template:
+    src: ra-scan.j2
+    dest: /usr/local/bin/ra-scan
+    mode: "0755"
+  become: true
+
+- name: Service du pool d'IP sources (charge multi-IP)
+  ansible.builtin.template:
+    src: attack-ippool.service.j2
+    dest: /etc/systemd/system/attack-ippool.service
+    mode: "0644"
+  become: true
+  register: ippool_unit
+
+- name: Activer et appliquer le pool d'IP sources
+  ansible.builtin.systemd_service:
+    name: attack-ippool
+    state: "{{ 'restarted' if ippool_unit.changed else 'started' }}"
+    enabled: true
+    daemon_reload: true
+  become: true
+
+- name: Démarrer les services de base
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    state: "{{ 'restarted' if (attack_env.changed or attack_code.changed) else 'started' }}"
+    enabled: true
+    daemon_reload: true
+  become: true
+  loop: [participation, coureur-vague]
+
+# --- Tunnel public : installé et PRÊT, mais NON démarré automatiquement --------
+# L'ouverture de l'entrée Internet est déclenchée par l'opérateur (bouton sur /qr,
+# ou `sudo systemctl start cloudflared`). On installe seulement le nécessaire ici.
+- name: Télécharger cloudflared
+  ansible.builtin.get_url:
+    url: "https://github.com/cloudflare/cloudflared/releases/download/{{ cloudflared_version }}/cloudflared-linux-amd64"
+    dest: /usr/local/bin/cloudflared
+    mode: "0755"
+    force: false
+  become: true
+
+- name: Service cloudflared (non démarré ; le bouton /qr le lance)
+  ansible.builtin.template:
+    src: cloudflared.service.j2
+    dest: /etc/systemd/system/cloudflared.service
+    mode: "0644"
+  become: true
+
+- name: Autoriser sadmin à piloter cloudflared (pour le bouton de la page /qr)
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/participation-tunnel
+    content: "sadmin ALL=(root) NOPASSWD: /usr/bin/systemctl start cloudflared, /usr/bin/systemctl stop cloudflared\n"
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+  become: true
+
+- name: Démarrage automatique du tunnel (optionnel, désactivé par défaut)
+  ansible.builtin.systemd_service:
+    name: cloudflared
+    state: "{{ 'started' if (attack_tunnel_enabled | bool) else 'stopped' }}"
+    enabled: "{{ attack_tunnel_enabled | bool }}"
+    daemon_reload: true
+  become: true
+  failed_when: false

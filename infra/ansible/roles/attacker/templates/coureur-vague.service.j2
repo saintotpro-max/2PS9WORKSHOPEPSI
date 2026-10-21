@@ -1,0 +1,13 @@
+[Unit]
+Description=Pilote de la vague de charge (démo de résilience, lab uniquement)
+After=participation.service
+
+[Service]
+EnvironmentFile={{ attack_dir }}/attack.env
+WorkingDirectory={{ attack_dir }}
+ExecStart=/usr/bin/python3 {{ attack_dir }}/coureur.py
+Restart=always
+User=sadmin
+
+[Install]
+WantedBy=multi-user.target

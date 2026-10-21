@@ -1,0 +1,6 @@
+---
+- name: Moteur Docker de la plateforme
+  hosts: docker_hosts:ips_hosts
+  become: true
+  roles:
+    - docker

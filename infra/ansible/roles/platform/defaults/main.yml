@@ -1,0 +1,23 @@
+---
+platform_dir: /opt/platform
+platform_db_name: payment
+platform_db_user: payment
+# Paranoïa CRS : 1 = peu de faux positifs (démo) ; monter à 2 une fois l'appli DEV testée
+waf_paranoia: 1
+waf_anomaly_inbound: 5
+dashboard_user: jury
+# Fragilité contrôlée du service de paiement (mode démo de reprise).
+# Repos SAIN à 1.0 CPU ; une vague qui MONTE progressivement (rampe) finit par
+# saturer le service après un moment. RAM confortable pour éviter tout OOM.
+paiement_cpus: "0.3"
+paiement_mem: 256m
+# true = le moteur décide et trace, sans redémarrer de conteneur
+remediation_dry_run: false
+
+# Validation faciale (équipe DEV) — API HÉBERGÉE CÔTÉ WAN (hôte Wi-Fi école),
+# appelée EN SORTIE par le service paiement pour l'authentification. Pas de règle
+# entrante : c'est un appel sortant via le NAT de pfSense (testé OK depuis ra-docker).
+# Laisser l'URL vide tant que l'API n'est pas déployée (la fonctionnalité reste inactive).
+# La clé X-API-Key est un secret SOPS (`face_api_key` dans secrets/platform.enc.yml).
+face_api_url: ""                # ex: http://10.60.64.XX:8001/api/v1/face/verify
+face_api_timeout: 15

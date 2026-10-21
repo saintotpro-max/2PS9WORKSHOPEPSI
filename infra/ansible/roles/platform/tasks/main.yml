@@ -1,0 +1,105 @@
+---
+- name: Secrets de la plateforme (déchiffrés par SOPS sur le nœud de contrôle)
+  community.sops.load_vars:
+    file: "{{ playbook_dir }}/../../secrets/platform.enc.yml"
+  no_log: true
+
+- name: Groupe docker (accès au socket pour le proxy de la remédiation)
+  ansible.builtin.getent:
+    database: group
+    key: docker
+
+- name: Identifiant du groupe docker
+  ansible.builtin.set_fact:
+    docker_gid: "{{ ansible_facts.getent_group.docker[1] }}"
+
+- name: Arborescence de la plateforme
+  ansible.builtin.file:
+    path: "{{ platform_dir }}/waf"
+    state: directory
+    mode: "0755"
+
+- name: Définition Compose
+  ansible.builtin.template:
+    src: compose.yml.j2
+    dest: "{{ platform_dir }}/compose.yml"
+    mode: "0644"
+
+- name: Configuration du WAF
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ platform_dir }}/waf/{{ item }}"
+    mode: "0644"
+  loop:
+    - default.conf.template
+    - proxy_dynamic.conf.template
+    - 50x.html
+    - RESPONSE-999-EXCLUSION-RULES-AFTER-CRS.conf
+    - REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf
+  notify: Redémarrer le WAF
+
+# Créé une seule fois (le sel change à chaque génération) : supprimer le fichier pour le régénérer
+- name: Mot de passe du dashboard (htpasswd)
+  ansible.builtin.shell: |
+    set -o pipefail
+    printf '%s:%s\n' "{{ dashboard_user }}" "$(printf '%s' "$PW" | openssl passwd -apr1 -stdin)" > htpasswd
+    chmod 0644 htpasswd
+  args:
+    chdir: "{{ platform_dir }}/waf"
+    creates: "{{ platform_dir }}/waf/htpasswd"
+    executable: /bin/bash
+  environment:
+    PW: "{{ dashboard_password }}"
+  no_log: true
+
+- name: Variables secrètes des conteneurs (réservées à root)
+  ansible.builtin.copy:
+    dest: "{{ platform_dir }}/{{ item.file }}"
+    content: "{{ item.content }}"
+    mode: "0600"
+  loop:
+    - file: db.env
+      content: |
+        POSTGRES_PASSWORD={{ db_password }}
+    - file: db-exporter.env
+      content: |
+        DATA_SOURCE_URI=db:5432/{{ platform_db_name }}?sslmode=disable
+        DATA_SOURCE_USER={{ platform_db_user }}
+        DATA_SOURCE_PASS={{ db_password }}
+    - file: remediation.env
+      content: |
+        REMEDIATION_TOKEN={{ remediation_token }}
+    - file: paiement.env
+      content: |
+        ALPHA_USERS=caissier:{{ paiement_password_caissier }},soc:{{ paiement_password_soc }},demo:{{ paiement_password_demo }},sonde:{{ txn_probe_password }}
+        FACE_API_URL={{ face_api_url }}
+        FACE_API_KEY={{ face_api_key | default('') }}
+        FACE_API_TIMEOUT={{ face_api_timeout }}
+    - file: txn-probe.env
+      content: |
+        TXN_PASSWORD={{ txn_probe_password }}
+  no_log: true
+
+- name: Code des services de la plateforme (remédiation, dashboard)
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../services/"
+    dest: "{{ platform_dir }}/services/"
+    mode: preserve
+  register: platform_services
+
+- name: Démarrer la plateforme
+  community.docker.docker_compose_v2:
+    project_src: "{{ platform_dir }}"
+    state: present
+    pull: missing
+    build: "{{ 'always' if platform_services.changed else 'policy' }}"
+    wait: true
+    wait_timeout: 300
+
+# Les règles de remédiation sont montées en volume : relecture si elles changent
+- name: Prendre en compte une nouvelle version des services
+  community.docker.docker_compose_v2:
+    project_src: "{{ platform_dir }}"
+    services: [remediation, dashboard, paiement, txn-probe]
+    state: restarted
+  when: platform_services.changed

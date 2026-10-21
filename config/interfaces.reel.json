@@ -13,8 +13,13 @@
     "url": "http://127.0.0.1:8765"
   },
   "attaque": {
-    "mode": "simule",
+    "mode": "mixte",
     "dossier": "attack/simule",
+    "dossier_reel": "attack/arsenal",
+    "niveaux_reels": [
+      1
+    ],
+    "cible_simulee": "http://127.0.0.1:8765",
     "python": "python3"
   },
   "role": "tous",

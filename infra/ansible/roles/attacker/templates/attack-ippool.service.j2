@@ -1,0 +1,16 @@
+{{ ansible_managed | comment }}
+# Ajoute un pool d'IP secondaires sur l'interface WAN pour que la charge puisse se lier
+# à plusieurs sources (la sonde IPS blacklistant par IP source). Lab uniquement.
+[Unit]
+Description=Pool d'IP sources de la charge RESILIENCE-ALPHA
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'for i in $(seq {{ attack_ip_pool_start }} {{ attack_ip_pool_start + attack_ip_pool_count - 1 }}); do ip addr add {{ attack_ip_pool_base }}.$i/22 dev {{ attack_wan_iface }} 2>/dev/null || true; done'
+ExecStop=/bin/sh -c 'for i in $(seq {{ attack_ip_pool_start }} {{ attack_ip_pool_start + attack_ip_pool_count - 1 }}); do ip addr del {{ attack_ip_pool_base }}.$i/22 dev {{ attack_wan_iface }} 2>/dev/null || true; done'
+
+[Install]
+WantedBy=multi-user.target

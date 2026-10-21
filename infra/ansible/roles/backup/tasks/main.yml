@@ -1,0 +1,39 @@
+---
+- name: Paquet age (chiffrement des sauvegardes)
+  ansible.builtin.apt:
+    name: age
+    state: present
+
+- name: Dossiers de sauvegarde et de métriques
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "{{ item.mode }}"
+  loop:
+    - {path: "{{ backup_dir }}", mode: "0700"}
+    - {path: "{{ textfile_dir }}", mode: "0755"}
+
+- name: Script de sauvegarde
+  ansible.builtin.template:
+    src: pg-backup.sh.j2
+    dest: /usr/local/sbin/pg-backup.sh
+    mode: "0750"
+
+- name: Service et minuterie
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    mode: "0644"
+  loop: [pg-backup.service, pg-backup.timer]
+
+- name: Minuterie activée
+  ansible.builtin.systemd_service:
+    name: pg-backup.timer
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Première sauvegarde (si aucune n'existe)
+  ansible.builtin.command: /usr/local/sbin/pg-backup.sh
+  args:
+    creates: "{{ textfile_dir }}/pg_backup.prom"

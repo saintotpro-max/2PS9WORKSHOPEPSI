@@ -123,6 +123,14 @@ init python:
                      "donnees_coherentes": "Les données sont cohérentes"}
     COULEUR_VERIF = {"ok": "#2ea043", "ko": "#dc3545", "en_cours": "#d29922"}
 
+    def libelle_action(action):
+        """Libelle de l'action recommandee ; en reel, rate_limit/scale_up n'ont pas
+        d'actionneur : on l'affiche au lieu de laisser croire a un effet."""
+        texte = LIBELLE_ACTION.get(action, action)
+        if (ETAT.cfg.get("moteur") or {}).get("mode") == "reel" and action in ("rate_limit", "scale_up"):
+            return texte + " (non branche en reel)"
+        return texte
+
     def reco():
         """Recommandation du détecteur portée par l'alerte, ou None."""
         a = ETAT.alerte
@@ -274,11 +282,30 @@ screen s_paiement():
     key "K_ESCAPE" action Return("titre")
 
 
+screen canal_ia(persona, couleur, titre_canal, largeur):
+    # Le tchat propre a une IA : chacune son canal (demande utilisateur).
+    frame:
+        background "#0b0f17e6"
+        xsize largeur
+        ysize 164
+        padding (12, 8)
+        vbox:
+            spacing 3
+            text titre_canal font POLICE_ETROITE size 14 color "#6e7681"
+            if not canal(persona):
+                text "en attente…" font POLICE_TERMINAL size 15 color "#6e7681"
+            for m in canal(persona)[-4:]:
+                text (sur(m["at"]) + "  " + sur(m["texte"])) font POLICE_TERMINAL size 16 color couleur xmaximum (largeur - 28)
+
+
 screen s_terminal():
+    # S3 — cockpit d'attaque simple : controles + journal. Le match des 2 IA vit dans S7.
     modal True
     add "bg capuchon"
     add Solid("#000000b0")
     use bandeau_injoignable
+    timer 0.5 repeat True action Function(renpy.restart_interaction)
+    $ en_cours = ETAT.terminal_etat == "en_cours"
     hbox:
         xalign 0.5
         ypos 72
@@ -294,10 +321,11 @@ screen s_terminal():
                     text "LE HACKER" font POLICE_TITRE size 20 color "#ff7b86"
                     text "l'attaquant" font POLICE_ETROITE size 20 color "#8b949e"
             for numero, nom in NIVEAUX:
-                textbutton nom style "bouton_petit_rouge" action Function(lancer_niveau, numero) sensitive (ETAT.terminal_etat != "en_cours")
+                textbutton nom style "bouton_petit_rouge" action Function(lancer_niveau, numero) sensitive (not en_cours)
             null height 8
-            textbutton "AUTONOMIE : LE DUEL" style "bouton_petit" action Jump("autonomie") sensitive (ETAT.terminal_etat != "en_cours")
-            null height 6
+            text ("CIBLE : " + sur(cible_actuelle() or "non definie")) font POLICE_ETROITE size 16 color "#8b949e" xmaximum 330
+            textbutton "Changer la cible (C)" style "bouton_petit" action Function(ui_definir_cible) sensitive (not en_cours)
+            null height 8
             textbutton "STOP" style "bouton_stop" action Function(arreter_script)
             textbutton "Retour" style "bouton_petit" action Return("titre")
         vbox:
@@ -323,7 +351,8 @@ screen s_terminal():
             elif ETAT.terminal_etat == "fini":
                 text "Script terminé (code 0). Le résultat sur la plateforme se lit dans le HUD." size 20 color "#c9d1d9"
             if porte_refermee():
-                text ("La porte se referme : la plateforme est revenue à l'état OK. Reprise mesurée : " + libelle_chrono() + " (relevé toutes les 2 s).") size 20 color "#7ee787" xmaximum 860
+                text ("La porte se referme : la plateforme est revenue à l'état OK. Reprise mesurée : " + libelle_chrono() + ".") size 20 color "#7ee787" xmaximum 860
+    key "c" action Function(ui_definir_cible)
     key "K_ESCAPE" action Return("titre")
 
 
@@ -341,7 +370,7 @@ screen bloc_recommandation(grand=False):
                 text ("informative, aucune action humaine" if grand else "informative") font (POLICE_ETROITE if grand else POLICE_TERMINAL) size (16 if grand else 14) color "#8b949e" yalign 0.5
             if r:
                 text sur(r["summary"]) font (POLICE_ETROITE if grand else POLICE_TERMINAL) size (26 if grand else 18) color "#ffffff"
-                text ("Action : " + LIBELLE_ACTION.get(r["suggested_action"], r["suggested_action"]) + "  ·  confiance " + str(int(r["confidence"] * 100)) + " %") font (POLICE_ETROITE if grand else POLICE_TERMINAL) size (22 if grand else 17) color "#58a6ff"
+                text ("Action : " + libelle_action(r["suggested_action"]) + "  ·  confiance " + str(int(r["confidence"] * 100)) + " %") font (POLICE_ETROITE if grand else POLICE_TERMINAL) size (22 if grand else 17) color "#58a6ff"
                 add Solid("#39c5cf", xysize=(int(300 * r["confidence"]), 5))
             else:
                 text "pas de recommandation reçue" font POLICE_ETROITE size 20 color "#6e7681"
@@ -513,8 +542,12 @@ screen s_salle():
             vbox:
                 spacing 6
                 use colonne_titre("#ff7b86", "LE HACKER", etat_capuchon(), "visage hacker", 300)
-                for e in evenements_de("attaquant", 5):
+                for e in evenements_de("attaquant", 4):
                     text (heure(e) + "  " + sur(e["detail"])) font POLICE_TERMINAL size 16 color "#ff7b86"
+                for m in canal("hacker")[-2:]:
+                    text ("» " + sur(m["texte"])) font POLICE_ETROITE size 15 color "#ffd7db" xmaximum 300
+        $ _statut, _couleur_statut = statut_plateforme()
+        $ _phase = "pendant" if (match_en_cours() and ETAT.latences) else phase_frise()
         frame:
             background "#0b0f17e6"
             xsize 420
@@ -522,22 +555,44 @@ screen s_salle():
             padding (16, 12)
             vbox:
                 spacing 6
-                add Solid("#58a6ff", xysize=(388, 4))
-                text ("PLATEFORME : " + libelle_sante()) font POLICE_TITRE size 22 color couleur_sante()
+                add Solid(_couleur_statut, xysize=(388, 4))
+                text ("PLATEFORME : " + _statut) font POLICE_TITRE size 24 color _couleur_statut
                 hbox:
                     spacing 6
                     for moment in ("avant", "pendant", "après"):
                         frame:
-                            background ("#58a6ff" if phase_frise() == moment else "#161b22")
+                            background (_couleur_statut if _phase == moment else "#161b22")
                             padding (12, 4)
-                            text moment font POLICE_ETROITE size 19 color ("#0b0f17" if phase_frise() == moment else "#6e7681")
-                text ("REPRISE " + libelle_chrono()) font POLICE_TERMINAL size 30 color ("#7ee787" if phase_frise() == "après" else "#ffffff")
+                            text moment font POLICE_ETROITE size 19 color ("#0b0f17" if _phase == moment else "#6e7681")
+                if ETAT.latences:
+                    hbox:
+                        spacing 10
+                        yalign 0.5
+                        text ("%d ms" % latence_actuelle()) font POLICE_TERMINAL size 30 color _couleur_statut
+                        text "latence paiement (ref ~15 ms)" font POLICE_ETROITE size 14 color "#6e7681" yalign 0.6
+                    fixed:
+                        xysize (388, 36)
+                        hbox:
+                            spacing 1
+                            yalign 1.0
+                            for v in ETAT.latences[-60:]:
+                                add Solid(("#dc3545" if v >= SEUIL_SATURE_MS else "#e3b341" if v >= SEUIL_RALENTI_MS else "#2ea043"),
+                                          xysize=(6, max(2, min(36, v // 8)))) yalign 1.0
+                    text ("PAIEMENTS   OK %d  ·  KO %d" % (ETAT.tx_ok, ETAT.tx_ko)) font POLICE_TERMINAL size 18 color "#c9d1d9"
+                else:
+                    text ("REPRISE " + libelle_chrono()) font POLICE_TERMINAL size 30 color ("#7ee787" if phase_frise() == "après" else "#ffffff")
+                    text ("Client  " + etat_ombre()) font POLICE_TERMINAL size 17 color "#8b949e"
+                hbox:
+                    spacing 10
+                    add Solid(("#2ea043" if ETAT.joignable else "#dc3545"), xysize=(10, 10)) yalign 0.5
+                    text "plateforme" font POLICE_TERMINAL size 14 color "#8b949e" yalign 0.5
+                    add Solid(("#2ea043" if ETAT.evenements else "#6e7681"), xysize=(10, 10)) yalign 0.5
+                    text "moteur" font POLICE_TERMINAL size 14 color "#8b949e" yalign 0.5
                 for c in ETAT.composants:
                     hbox:
                         spacing 8
                         add Solid(couleur_composant(c["status"]), xysize=(10, 10)) yalign 0.5
                         text sur(c["name"]) font POLICE_TERMINAL size 17 color "#c9d1d9"
-                text ("Client  " + etat_ombre()) font POLICE_TERMINAL size 17 color "#8b949e"
         frame:
             background "#0b0f17e6"
             xsize 480
@@ -550,6 +605,8 @@ screen s_salle():
                 text sur("Alerte  " + libelle_alerte_longue()) font POLICE_TERMINAL size 16 color ("#ff7b86" if ETAT.alerte else "#6e7681") xmaximum 448
                 for e in evenements_de("moteur", 2):
                     text (heure(e) + "  " + sur(e["detail"])) font POLICE_TERMINAL size 15 color "#58a6ff"
+                for m in canal("sentinelle")[-2:]:
+                    text ("» " + sur(m["texte"])) font POLICE_ETROITE size 15 color "#ffe9b0" xmaximum 446
     hbox:
         xalign 0.5
         ypos 420
@@ -595,8 +652,15 @@ screen s_salle():
                 text "JOURNAL" font POLICE_ETROITE size 17 color "#8b949e"
                 for e in reversed(ETAT.evenements[-7:]):
                     text (heure(e) + "  " + sur(e["detail"])) font POLICE_TERMINAL size 15 color COULEUR_SOURCE.get(e.get("source"), "#c9d1d9")
+    timer 0.5 repeat True action Function(renpy.restart_interaction)
+    if match_en_cours():
+        text ("● MATCH EN COURS — TOUR %d   ·   S : stop" % (ETAT.match or {}).get("tour", 0)) font POLICE_TITRE size 20 color "#7ee787" xalign 0.5 ypos 632
+    else:
+        text "▶ M : LANCER LE MATCH DES 2 IA" font POLICE_TITRE size 20 color "#36f1cd" xalign 0.5 ypos 632
     if not projection:
-        text "P projection  ·  V vague  ·  Échap retour" font POLICE_ETROITE size 19 color "#8b95c9" xalign 0.5 ypos 664
+        text "M match · S stop · P projection · V vague · Échap retour" font POLICE_ETROITE size 18 color "#8b95c9" xalign 0.5 ypos 668
+    key "m" action Function(demarrer_match)
+    key "s" action Function(arreter_match)
     key "p" action ToggleScreenVariable("projection")
     key "v" action Show("s_vague")
     key "K_ESCAPE" action Return("titre")
@@ -631,6 +695,17 @@ init python:
 
     def ui_reset_vague():
         reset_vague()
+
+    def _saisir_cible():
+        actuel = cible_actuelle().replace("https://", "").replace("http://", "")
+        val = renpy.input("Adresse de la plateforme a attaquer (IP ou URL)",
+                          default=actuel, length=48, allow="0123456789.:abcdefghijklmnopqrstuvwxyz/-")
+        if val is not None and val.strip():
+            definir_cible(val.strip())
+
+    def ui_definir_cible():
+        # input dans un contexte dedie : fonctionne depuis un bouton/une touche
+        renpy.invoke_in_new_context(_saisir_cible)
 
 
 screen s_vague():

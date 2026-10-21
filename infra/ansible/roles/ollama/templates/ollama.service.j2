@@ -1,0 +1,22 @@
+[Unit]
+Description=Ollama (LLM local pour l'assistant RAG)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/ollama serve
+User=ollama
+Group=ollama
+Environment="OLLAMA_HOST={{ ollama_listen }}"
+Environment="OLLAMA_KEEP_ALIVE=24h"
+Environment="HOME={{ ollama_home }}"
+Environment="OLLAMA_MODELS={{ ollama_home }}/models"
+WorkingDirectory={{ ollama_home }}
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

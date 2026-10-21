@@ -1,0 +1,15 @@
+# Table dédiée à la sonde IPS (famille bridge = trafic qui traverse br0).
+# Chargée par ips-nft.service ; ne touche pas aux règles de Docker.
+table bridge ips {}
+delete table bridge ips
+table bridge ips {
+  # Rempli par flow-extractor, entrées expirées automatiquement
+  set blocked {
+    type ipv4_addr
+    flags timeout
+  }
+  chain forward {
+    type filter hook forward priority filter; policy accept;
+    ether type ip ip saddr @blocked counter drop
+  }
+}

@@ -1,0 +1,24 @@
+# {{ ansible_managed }}
+# Pare-feu d'entrée de {{ inventory_hostname }}. Table dédiée : ne touche ni aux règles
+# de Docker ni à celles de la sonde IPS. Le trafic transféré (conteneurs, pont IPS)
+# n'est pas concerné : uniquement ce qui est destiné à l'hôte lui-même.
+table inet hostfw {}
+delete table inet hostfw
+table inet hostfw {
+  chain input {
+    type filter hook input priority filter; policy drop;
+
+    iif lo accept
+    ct state established,related accept
+    ct state invalid drop
+    meta l4proto { icmp, ipv6-icmp } accept
+{% for iface in hostfw_trusted_ifaces %}
+    iifname "{{ iface.name }}" tcp dport { {{ iface.ports | join(', ') }} } accept   # {{ iface.comment }}
+{% endfor %}
+{% for r in hostfw_tcp_allow %}
+    {% if r.from is defined %}ip saddr { {{ r.from | join(', ') }} } {% endif %}tcp dport {{ r.port }} accept   # {{ r.comment }}
+{% endfor %}
+
+    limit rate 10/minute log prefix "hostfw-drop: " level info
+  }
+}

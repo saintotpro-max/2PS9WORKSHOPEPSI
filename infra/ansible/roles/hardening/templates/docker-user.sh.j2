@@ -1,0 +1,16 @@
+#!/bin/sh
+# {{ ansible_managed }}
+# Restreint l'accès aux ports publiés par Docker : ce trafic est traduit (DNAT) puis
+# transféré vers le conteneur, il ne passe donc pas par la chaîne input de l'hôte.
+# --ctorigdstport = port demandé par le client (port publié sur l'hôte).
+set -e
+iptables -N DOCKER-USER 2>/dev/null || true
+iptables -F DOCKER-USER
+{% for r in docker_user_restrict %}
+# {{ r.comment }}
+{% for src in r.from %}
+iptables -A DOCKER-USER -p tcp -m conntrack --ctdir ORIGINAL --ctorigdstport {{ r.host_port }} -s {{ src }} -j RETURN
+{% endfor %}
+iptables -A DOCKER-USER -p tcp -m conntrack --ctdir ORIGINAL --ctorigdstport {{ r.host_port }} -j DROP
+{% endfor %}
+iptables -A DOCKER-USER -j RETURN

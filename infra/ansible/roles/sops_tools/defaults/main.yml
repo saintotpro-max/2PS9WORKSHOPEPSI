@@ -1,0 +1,6 @@
+---
+sops_version: "3.13.3"
+sops_deb_url: "https://github.com/getsops/sops/releases/download/v{{ sops_version }}/sops_{{ sops_version }}_amd64.deb"
+
+# Clé privée age : reste uniquement sur le nœud de contrôle, jamais dans le dépôt
+age_key_file: "/home/{{ ansible_user_id }}/.config/sops/age/keys.txt"

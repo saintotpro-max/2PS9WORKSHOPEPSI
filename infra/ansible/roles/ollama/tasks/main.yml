@@ -1,0 +1,74 @@
+---
+- name: Paquet zstd (archive Ollama)
+  ansible.builtin.apt:
+    name: zstd
+    state: present
+
+- name: Version d'Ollama installée
+  ansible.builtin.command: /usr/local/bin/ollama --version
+  register: ollama_installed
+  changed_when: false
+  failed_when: false
+
+- name: Installer Ollama {{ ollama_version }}
+  when: ollama_version not in (ollama_installed.stdout | default(''))
+  block:
+    - name: Télécharger l'archive
+      ansible.builtin.get_url:
+        url: "{{ ollama_url }}"
+        dest: /tmp/ollama-linux-amd64.tar.zst
+        mode: "0644"
+
+    - name: Extraire dans /usr/local
+      ansible.builtin.command: tar --zstd -xf /tmp/ollama-linux-amd64.tar.zst -C /usr/local
+      changed_when: true
+      notify: Redémarrer ollama
+
+# Home dans /var/lib : ProtectSystem=full rend /usr en lecture seule pour le service
+- name: Utilisateur système ollama
+  ansible.builtin.user:
+    name: ollama
+    system: true
+    home: "{{ ollama_home }}"
+    move_home: true
+    shell: /usr/sbin/nologin
+    create_home: true
+
+- name: Dossier de données ollama
+  ansible.builtin.file:
+    path: "{{ ollama_home }}"
+    state: directory
+    owner: ollama
+    group: ollama
+    mode: "0750"
+
+- name: Service systemd ollama
+  ansible.builtin.template:
+    src: ollama.service.j2
+    dest: /etc/systemd/system/ollama.service
+    mode: "0644"
+  notify: Redémarrer ollama
+
+- name: Ollama démarré et activé au boot
+  ansible.builtin.systemd_service:
+    name: ollama
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Appliquer un éventuel redémarrage avant de télécharger les modèles
+  ansible.builtin.meta: flush_handlers
+
+- name: Attendre qu'Ollama écoute
+  ansible.builtin.wait_for:
+    host: "{{ ollama_listen.split(':')[0] }}"
+    port: "{{ ollama_listen.split(':')[1] | int }}"
+    timeout: 60
+
+- name: Télécharger les modèles
+  ansible.builtin.command: /usr/local/bin/ollama pull {{ item }}
+  environment:
+    OLLAMA_HOST: "{{ ollama_listen }}"
+  loop: "{{ ollama_models }}"
+  register: ollama_pull
+  changed_when: "'pulling' in ollama_pull.stderr"

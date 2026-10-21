@@ -1,0 +1,6 @@
+---
+- name: Sonde IPS (Argus + extraction des features + modèle RF + blocage)
+  hosts: ips_hosts
+  become: true
+  roles:
+    - ips

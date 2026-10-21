@@ -1,0 +1,30 @@
+---
+attack_dir: /opt/attack
+# IP WAN actuelle de pfSense (DHCP du Wi-Fi) — à mettre à jour selon le réseau.
+# La plateforme est jointe en HTTPS sur cette adresse, via la redirection pfSense.
+platform_wan_ip: 10.60.64.36
+# Périmètre autorisé de la charge : la plateforme du lab uniquement. Garde-fou :
+# toute cible hors de ce réseau est refusée par la primitive de charge.
+attack_perimeter: 10.60.64.0/22
+participation_port: 8088
+wave_decompte_s: 5
+wave_rampe_s: 20        # la charge monte progressivement sur 20 s (pas de chute instantanée)
+wave_duree_max_s: 600   # garde-fou : arrêt auto au bout de 10 min. Sinon, arrêt MANUEL (bouton)
+# Charge : fils = clamp(min ; min + par_participant × participants ; max).
+# Le PLANCHER (min) est la charge atteinte même SANS participant (test solo) :
+# relevé pour qu'une vague fasse réellement plier le service à 0.3 CPU.
+attack_fils_min: 100
+attack_fils_max: 600
+attack_fils_par_participant: 8
+# Pool d'IP sources : la charge se lie à ces IP (secondaires sur l'interface WAN) pour
+# que la sonde voie PLUSIEURS sources distinctes à blacklister. Plage haute du /22 de
+# l'école, peu susceptible d'entrer en conflit avec le DHCP. Vide = source unique.
+attack_wan_iface: nic1
+attack_ip_pool_base: "10.60.67"
+attack_ip_pool_start: 200
+attack_ip_pool_count: 12
+cloudflared_version: "2026.10.1"
+# Exposition de la page de participation sur Internet (tunnel cloudflared).
+# Désactivé par défaut : l'ouverture d'une entrée Internet est une action que
+# l'opérateur déclenche explicitement (voir docs/demo.md). true pour l'activer.
+attack_tunnel_enabled: false

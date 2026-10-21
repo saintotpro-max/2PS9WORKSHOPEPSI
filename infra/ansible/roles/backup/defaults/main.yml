@@ -1,0 +1,5 @@
+---
+backup_dir: /var/backups/platform
+backup_keep: 48                    # 48 sauvegardes horaires = 2 jours
+backup_schedule: hourly
+textfile_dir: /var/lib/node_exporter/textfile

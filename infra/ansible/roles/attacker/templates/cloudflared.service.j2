@@ -1,0 +1,12 @@
+[Unit]
+Description=Tunnel public cloudflared vers la page de participation
+After=participation.service network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/cloudflared tunnel --no-autoupdate --url http://127.0.0.1:{{ participation_port }} --logfile {{ attack_dir }}/cloudflared.log --loglevel info
+Restart=always
+RestartSec=5
+User=sadmin
+
+[Install]
+WantedBy=multi-user.target

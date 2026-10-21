@@ -1,0 +1,42 @@
+# {{ ansible_managed }}
+# Agent d'observabilité de {{ inventory_hostname }} : métriques hôte + journaux vers Loki (ra-docker)
+name: obs-agent
+
+volumes:
+  alloy-data:
+
+services:
+  node-exporter:
+    image: prom/node-exporter:{{ obs_versions.node_exporter }}
+    command: [--path.rootfs=/host, "--web.listen-address={{ ansible_host }}:9100"]
+    network_mode: host
+    pid: host
+    volumes: ["/:/host:ro,rslave"]
+    restart: unless-stopped
+
+  # Accès Docker filtré, lecture seule : liste/inspection des conteneurs et journaux.
+  # Aucune requête POST (création, arrêt, exec...) n'est possible.
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy:{{ obs_versions.socket_proxy }}
+    environment:
+      CONTAINERS: "1"
+      EVENTS: "1"
+      NETWORKS: "1"     # requis par la découverte Alloy (labels réseau)
+      INFO: "1"
+      POST: "0"
+    volumes: [/var/run/docker.sock:/var/run/docker.sock:ro]
+    read_only: true
+    tmpfs: [/run, /tmp]   # haproxy y génère sa configuration
+    restart: unless-stopped
+
+  alloy:
+    image: grafana/alloy:{{ obs_versions.alloy }}
+    command: [run, --storage.path=/var/lib/alloy, /etc/alloy/config.alloy]
+    volumes:
+      - ./config.alloy:/etc/alloy/config.alloy:ro
+      - alloy-data:/var/lib/alloy
+      - /var/log/journal:/var/log/journal:ro
+      - /run/log/journal:/run/log/journal:ro
+      - /etc/machine-id:/etc/machine-id:ro
+    depends_on: [socket-proxy]
+    restart: unless-stopped

@@ -1,0 +1,81 @@
+# Routage du WAF RESILIENCE-ALPHA (remplace le modèle par défaut de l'image OWASP CRS).
+# Les ${VARIABLES} sont substituées au démarrage par l'image ; ModSecurity + CRS
+# s'appliquent à tous les serveurs (conf.d/modsecurity.conf de l'image).
+
+server_tokens ${SERVER_TOKENS};
+more_set_headers 'Server: ${SERVER_HEADER}';
+
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    '' close;
+}
+
+# Résolution à la volée (resolver = DNS Docker, déclaré par l'image) : tant qu'un service
+# DEV n'est pas déployé, sa route renvoie une page 502 au lieu d'empêcher nginx de démarrer.
+
+# HTTP : santé pour la supervision, tout le reste redirigé vers HTTPS
+server {
+    listen ${PORT} default_server;
+    server_name ${SERVER_NAME};
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+
+    include includes/location_common.conf;
+}
+
+server {
+    listen ${SSL_PORT} ssl default_server;
+    http2 on;
+    server_name ${SERVER_NAME};
+
+    ssl_certificate ${SSL_CERT_FILE};
+    ssl_certificate_key ${SSL_CERT_KEY_FILE};
+    ssl_protocols ${SSL_PROTOCOLS};
+    ssl_ciphers ${SSL_CIPHERS};
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:MozSSL:10m;
+    ssl_session_tickets off;
+
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options DENY always;
+    add_header Referrer-Policy same-origin always;
+
+    client_max_body_size 1m;
+
+    # Plateforme de paiement : frontal (/), authentification (/auth/token) et
+    # transactions (/transactions) sont servis par le même service.
+    location / {
+        set $upstream http://paiement:8000;
+        include includes/proxy_dynamic.conf;
+    }
+
+    # Contrôle de la liste de blocage IPS -> service de contrôle sur ra-ips (10.10.10.40:9102).
+    # Lecture (dashboard) et déblocage (bouton de la page QR). Appel est-ouest interne.
+    location = /ipsctl/blocklist {
+        limit_except GET { deny all; }
+        proxy_pass http://10.10.10.40:9102/blocklist;
+    }
+    location = /ipsctl/unblock {
+        limit_except POST { deny all; }
+        proxy_pass http://10.10.10.40:9102/unblock;
+    }
+
+    # Métriques internes : réservées à Prometheus (réseau obs), jamais exposées
+    location = /metrics {
+        return 404;
+    }
+
+    # Supervision pour le jury : protégée par mot de passe (secret SOPS)
+    location /dashboard/ {
+        auth_basic "RESILIENCE-ALPHA";
+        auth_basic_user_file /etc/nginx/htpasswd;
+        set $upstream http://dashboard:8080;
+        include includes/proxy_dynamic.conf;
+    }
+
+    # /healthz, /metrics/nginx et la page d'erreur /50x.html (error_page 5xx) viennent de l'image
+    include includes/location_common.conf;
+}

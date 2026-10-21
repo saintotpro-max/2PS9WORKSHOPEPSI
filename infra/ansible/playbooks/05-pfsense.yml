@@ -1,0 +1,37 @@
+---
+# Configuration de pfSense en code (pfsensible.core, via SSH).
+# Prérequis (une fois, dans l'interface web) : SSH activé en clé seule, clé de ra-ansible
+# ajoutée au compte admin.
+- name: Exposition de la plateforme par pfSense
+  hosts: firewalls
+  gather_facts: false
+  tasks:
+    - name: Alias des clients autorisés à joindre la plateforme
+      pfsensible.core.pfsense_alias:
+        name: CLIENTS_AUTORISES
+        type: network
+        address: "{{ pfsense_allowed_clients | join(' ') }}"
+        descr: "Réseaux autorisés vers le WAF (géré par Ansible)"
+        state: present
+
+    # Le WAN est sur un réseau privé (Wi-Fi) : sans cela, tout client est rejeté
+    - name: WAN — accepter les réseaux privés
+      pfsensible.core.pfsense_interface:
+        descr: WAN
+        interface: vmx0
+        enable: true
+        ipv4_type: dhcp
+        blockpriv: false
+        blockbogons: true
+
+    - name: Redirection HTTPS vers le WAF
+      pfsensible.core.pfsense_nat_port_forward:
+        descr: "WAF RESILIENCE-ALPHA (géré par Ansible)"
+        interface: wan
+        protocol: tcp
+        source: CLIENTS_AUTORISES
+        destination: "IP:wan:443"
+        target: "{{ docker_lan_ip }}:443"
+        associated_rule: associated
+        natreflection: disable
+        state: present

@@ -7,7 +7,7 @@ RACINE="$(cd "$(dirname "$0")/.." && pwd)"
 SORTIE="${1:-$RACINE/Code.zip}"
 cd "$RACINE" || exit 1
 
-EXCLUS='(^\./\.git/|/\.venv/|/__pycache__/|/node_modules/|/cache/|/saves/|\.rpyc$|\.pyc$|\.db$|/Code\.zip$|~$)'
+EXCLUS='(^\./\.git/|/\.venv/|/__pycache__/|/node_modules/|/cache/|/saves/|^\./coll|\.rpyc$|\.pyc$|\.db$|/Code\.zip$|~$)'
 mapfile -t FICHIERS < <(find . -type f | grep -vE "$EXCLUS" | sed 's|^\./||')
 
 if [ "${#FICHIERS[@]}" -eq 0 ]; then

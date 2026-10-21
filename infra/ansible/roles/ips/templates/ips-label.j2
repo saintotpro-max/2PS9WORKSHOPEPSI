@@ -1,0 +1,16 @@
+#!/bin/sh
+# {{ ansible_managed }}
+# Étiquette les flux exportés par la sonde IPS (jeu de données d'entraînement).
+#   ips-label normal | dos | reconnaissance | <autre>   démarre l'étiquetage
+#   ips-label off                                      arrête l'export
+#   ips-label                                          affiche l'étiquette et les fichiers
+set -e
+DIR=/var/lib/ips-capture
+if [ -z "$1" ]; then
+  echo "étiquette : $(cat $DIR/label 2>/dev/null || echo off)"
+  ls -lh $DIR/*.csv 2>/dev/null || echo "aucun fichier"
+  exit 0
+fi
+case "$1" in *[!a-zA-Z0-9_-]*) echo "étiquette invalide" >&2; exit 1;; esac
+echo "$1" > $DIR/label
+echo "étiquette : $1  ($(date '+%H:%M:%S'))"

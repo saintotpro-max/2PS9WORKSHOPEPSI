@@ -1,0 +1,61 @@
+# Sonde IPS (ra-ips). Capture et blocage en réseau hôte (accès à nic2 / nftables),
+# le modèle ML reste isolé et n'est publié que sur 127.0.0.1.
+name: ips
+
+services:
+  argus:
+    build: ./argus
+    network_mode: host
+    cap_add: [NET_ADMIN, NET_RAW]
+    restart: unless-stopped
+
+  # Modèle Random Forest de l'équipe DEV/IA (UNSW-NB15 : Normal / DoS / Reconnaissance).
+  # Le modèle est un pickle : monté en lecture seule et refusé si son empreinte change.
+  ml-detector:
+    build: ./ml-detector
+    environment:
+      MODEL_PATH: /model/attack_detector_rf_3classes.joblib
+      MODEL_SHA256: e0c3a4df97e5712463596fecaaa25a4ff50e1fa0948a501f3f866cd55ca6571f
+    volumes: ["./ml-detector/model:/model:ro"]
+    ports: ["127.0.0.1:8000:8000"]
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+
+  flow-extractor:
+    build: ./flow-extractor
+    network_mode: host
+    cap_add: [NET_ADMIN]
+    environment:
+      ARGUS_SOURCE: 127.0.0.1:561
+      PREDICT_URL: http://127.0.0.1:8000/predict
+      BLOCK_ENABLED: "true"         # blocage réel : l'IP source est ajoutée au set nftables
+      ATTACK_CLASSES: DoS,Reconnaissance
+      ATTACK_THRESHOLD: "0.6"       # modèle calibré ~95 % : proba DoS ~0,7-0,8 -> seuil abaissé
+      HITS_TO_BLOCK: "3"
+      BLOCK_TIMEOUT: 10m
+      ALLOWLIST: 10.10.10.0/24,10.60.66.27/32   # +IP de contrôle de ra-attacker (QR/deban), jamais bloquée
+      BATCH_INTERVAL: "0.5"
+      BATCH_MAX: "500"
+      METRICS_PORT: "9101"
+      CAPTURE_DIR: /capture         # export du jeu de données (cf. ips-label)
+    volumes:
+      - /var/lib/ips-capture:/capture
+    depends_on:
+      argus: {condition: service_started}
+      ml-detector: {condition: service_healthy}
+    restart: unless-stopped
+
+  # Contrôle de la liste de blocage : lecture (dashboard) et déblocage (bouton page QR).
+  # Même netns + CAP_NET_ADMIN que la sonde pour agir sur le set nftables `blocked`.
+  ips-control:
+    build: ./ips-control
+    network_mode: host
+    cap_add: [NET_ADMIN]
+    environment:
+      CONTROL_PORT: "9102"
+      NFT_TABLE: bridge ips
+      NFT_SET: blocked
+    restart: unless-stopped

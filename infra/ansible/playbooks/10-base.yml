@@ -1,0 +1,6 @@
+---
+- name: Socle commun des VM Linux
+  hosts: control:docker_hosts:ips_hosts:ia_hosts:attackers
+  become: true
+  roles:
+    - common

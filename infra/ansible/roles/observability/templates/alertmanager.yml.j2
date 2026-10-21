@@ -1,0 +1,19 @@
+# {{ ansible_managed }}
+# Toutes les alertes partent vers le moteur de remédiation, qui ignore celles
+# pour lesquelles il n'a pas de règle. Authentification par jeton (SOPS).
+route:
+  receiver: remediation
+  group_by: [alertname, instance, service]
+  group_wait: 2s
+  group_interval: 30s
+  repeat_interval: 1h
+
+receivers:
+  - name: remediation
+    webhook_configs:
+      - url: http://remediation:8000/alerts
+        send_resolved: true
+        http_config:
+          authorization:
+            type: Bearer
+            credentials_file: /etc/alertmanager/remediation_token

@@ -1,31 +1,35 @@
-2026-10-20 09:33:19 UTC
+2026-10-21 08:55:10 UTC
 Linux-6.12.32-amd64-x86_64-with-glibc2.41
 Ren'Py 8.5.3.26051504
 
-Early init took 46 ms
-Loading error handling took 16 ms
-Loading script took 72 ms
-Loading save slot metadata took 18 ms
+Early init took 38 ms
+Loading error handling took 14 ms
+Loading script took 78 ms
+Loading save slot metadata took 19 ms
 Loading persistent took 0 ms
-Running init code took 34 ms
-Loading analysis data took 9 ms
+Running init code took 33 ms
+Loading analysis data took 10 ms
 Analyze and compile ATL took 1 ms
 Reloading save slot metadata took 3 ms
 Dump and make backups took 0 ms
 Cleaning cache took 0 ms
 Making clean stores took 0 ms
-Initial gc took 35 ms
+Initial gc took 31 ms
 DPI scale factor: 1.000000
 Creating interface object took 0 ms
 Init translation took 0 ms
 Cleaning stores took 0 ms
-Load screen analysis took 24 ms
+Load screen analysis took 17 ms
 Analyze screens took 1 ms
 Save screen analysis took 0 ms
 Save pyanalysis took 0 ms
 Save bytecode took 0 ms
-Running _start took 1 ms
-Interface start took 374 ms
+[rpytest] [log] Running 2 test(s) marked with 'only' flag.
+[rpytest] [log] - global.jeu
+[rpytest] [log] - global.jeu
+[rpytest] [exc] + global
+Running _start took 2 ms
+Interface start took 704 ms
 
 Initializing gl2 renderer:
 primary display bounds: (0, 0, 1920, 1200)
@@ -37,3 +41,64 @@ Version: '4.6 (Compatibility Profile) Mesa 25.0.7-2'
 Display Info: <Info({'bitsize': 32, 'bytesize': 4, 'masks': (16711680, 65280, 255, 0), 'shifts': (16, 8, 0, 0), 'losses': (0, 0, 0, 8), 'current_w': 1920, 'current_h': 1200, 'refresh_rate': 60, 'hw': False, 'wm': True, 'video_mem': 268435456, 'blit_hw': False, 'blit_hw_CC': False, 'blit_hw_A': False, 'blit_sw': False, 'blit_sw_CC': False, 'blit_sw_A': False})>
 Screen sizes: virtual=(1280, 720) physical=(1280, 720) drawable=(1280, 720)
 Maximum texture size: 4096x4096
+[rpytest] [exc]   + jeu
+[rpytest] [exc]     - paiement_reel_avant_attaque
+[rpytest] [exc]     - paiement_reel_avant_attaque (0.037 s)
+[rpytest] [exc]     - attaque_panne_reprise_paiement
+[rpytest] [exc]     - attaque_panne_reprise_paiement (5.154 s)
+[rpytest] [exc]     - plateforme_injoignable
+[rpytest] [exc]     - plateforme_injoignable (0.489 s)
+[rpytest] [exc]     - script_en_echec_affiche_tel_quel
+[rpytest] [exc]     - script_en_echec_affiche_tel_quel (0.035 s)
+[rpytest] [exc]     - soc_refuse_intervention_manuelle
+[rpytest] [exc]     - soc_refuse_intervention_manuelle (0.348 s)
+[rpytest] [exc]     - demo_refusee_si_interface_simulee
+[rpytest] [exc]     - demo_refusee_si_interface_simulee (0.012 s)
+[rpytest] [exc]     - salle_de_controle_trois_points_de_vue
+[rpytest] [exc]     - salle_de_controle_trois_points_de_vue (3.148 s)
+[rpytest] [exc]     - vague_participation_cockpit
+[rpytest] [exc]     - vague_participation_cockpit (1.075 s)
+[rpytest] [exc]     - scenario_boucle_b
+[rpytest] [exc]     - scenario_boucle_b (22.310 s)
+[rpytest] [exc]     - match_in_tour
+[rpytest] [exc]     - match_in_tour (0.044 s)
+[rpytest] [exc]     - repetition_ex12
+[rpytest] [exc]     - repetition_ex12 (14.943 s)
+[rpytest] [exc]     - role_attaquant_une_seule_porte
+[rpytest] [exc]     - role_attaquant_une_seule_porte (0.023 s)
+[rpytest] [exc]     - role_hote_sans_capuchon
+[rpytest] [exc]     - role_hote_sans_capuchon (0.033 s)
+[rpytest] [exc]     - demo_refusee_sans_role_verrouille
+[rpytest] [exc]     - demo_refusee_sans_role_verrouille (0.030 s)
+[rpytest] [exc]     - message_soc_selon_alerte
+[rpytest] [exc]     - message_soc_selon_alerte (4.059 s)
+[rpytest] [exc]     - epilogue_apres_incident
+[rpytest] [exc]     - epilogue_apres_incident (2.686 s)
+[rpytest] [exc]     - stop_arrete_l_outil_et_ses_enfants
+[rpytest] [exc]     - stop_arrete_l_outil_et_ses_enfants (0.063 s)
+[rpytest] [exc]     - stop_sans_script_le_dit
+[rpytest] [exc]     - stop_sans_script_le_dit (0.019 s)
+[rpytest] [exc]     - attaque_niveau_1_lancee_puis_arretee
+[rpytest] [exc]     - attaque_niveau_1_lancee_puis_arretee (1.955 s)
+[rpytest] [exc]     - attaque_niveau_2_lancee_puis_arretee
+[rpytest] [exc]     - attaque_niveau_2_lancee_puis_arretee (0.035 s)
+[rpytest] [exc]     - attaque_niveau_3_lancee_puis_arretee
+[rpytest] [exc]     - attaque_niveau_3_lancee_puis_arretee (0.038 s)
+[rpytest] [exc]     - attaque_niveau_4_injection_bloquee_puis_arretee
+[rpytest] [exc]     - attaque_niveau_4_injection_bloquee_puis_arretee (0.967 s)
+[rpytest] [exc]     - attaque_hors_perimetre_refusee
+[rpytest] [exc]     - attaque_hors_perimetre_refusee (0.070 s)
+[rpytest] [exc]     - soc_en_trois_etapes_avec_recommandation
+[rpytest] [exc]     - soc_en_trois_etapes_avec_recommandation (3.061 s)
+[rpytest] [exc]     - salle_flux_bloques_et_recommandation
+[rpytest] [exc]     - salle_flux_bloques_et_recommandation (1.528 s)
+
+[rpytest] Test outcomes (Summary)
+[rpytest] Test suites:     6 |     2 passed |     0 xfailed |     0 failed |     0 xpassed |     0 skipped |     4 not run
+[rpytest] Test cases :    25 |    25 passed |     0 xfailed |     0 failed |     0 xpassed |     0 skipped |     0 not run
+[rpytest] Test hooks :    26 |    26 passed |     0 xfailed |     0 failed |     0 xpassed |     0 skipped |     0 not run
+[rpytest] Assertions :    95 |    95 passed |     0 xfailed |     0 failed |     0 xpassed | 
+
+[rpytest] Time: 63.806 s [01:03]
+[rpytest] Status: PASSED 
+

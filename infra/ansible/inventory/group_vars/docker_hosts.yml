@@ -1,0 +1,10 @@
+---
+hostfw_tcp_allow:
+  - {port: 22, from: [10.10.10.10/32], comment: "SSH depuis ra-ansible uniquement"}
+# Prometheus (conteneur) relève node-exporter de l'hôte via un pont Docker
+hostfw_trusted_ifaces:
+  - {name: "br-*", ports: [9100], comment: "node-exporter <- Prometheus"}
+# 80/443 (WAF) restent ouverts : seule entrée de la plateforme
+docker_user_restrict:
+  - {host_port: 3000, from: [10.10.10.10/32], comment: "Grafana : tunnel SSH via ra-ansible"}
+  - {host_port: 3100, from: [10.10.10.40/32], comment: "Loki : agent de ra-ips"}

@@ -1,0 +1,12 @@
+---
+# Déploiement complet, dans l'ordre
+- import_playbook: playbooks/00-control.yml
+- import_playbook: playbooks/05-pfsense.yml
+- import_playbook: playbooks/10-base.yml
+- import_playbook: playbooks/15-hardening.yml
+- import_playbook: playbooks/20-docker.yml
+# - import_playbook: playbooks/30-ollama.yml   # LLM mis de côté
+- import_playbook: playbooks/40-ips.yml
+- import_playbook: playbooks/50-observability.yml
+- import_playbook: playbooks/60-platform.yml
+- import_playbook: playbooks/70-backup.yml

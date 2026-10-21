@@ -1,0 +1,70 @@
+---
+- name: Paquet nftables
+  ansible.builtin.apt:
+    name: nftables
+    state: present
+
+- name: Dossier de configuration IPS
+  ansible.builtin.file:
+    path: /etc/ips
+    state: directory
+    mode: "0755"
+
+- name: Règles nftables de la sonde
+  ansible.builtin.template:
+    src: ips.nft.j2
+    dest: /etc/ips/ips.nft
+    mode: "0644"
+  notify: Recharger la table IPS
+
+- name: Service de chargement des règles
+  ansible.builtin.template:
+    src: ips-nft.service.j2
+    dest: /etc/systemd/system/ips-nft.service
+    mode: "0644"
+  notify: Recharger la table IPS
+
+- name: Table IPS chargée et activée au boot
+  ansible.builtin.systemd_service:
+    name: ips-nft
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Appliquer les règles avant de lancer la sonde
+  ansible.builtin.meta: flush_handlers
+
+- name: Dossier d'export du jeu de données
+  ansible.builtin.file:
+    path: /var/lib/ips-capture
+    state: directory
+    mode: "0750"
+
+- name: Export désactivé par défaut
+  ansible.builtin.copy:
+    content: "off
+"
+    dest: /var/lib/ips-capture/label
+    mode: "0644"
+    force: false
+
+- name: Commande d'étiquetage ips-label
+  ansible.builtin.template:
+    src: ips-label.j2
+    dest: /usr/local/bin/ips-label
+    mode: "0755"
+
+- name: Copier la pile de la sonde
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../ips/"
+    dest: "{{ ips_dir }}/"
+    mode: preserve
+  register: ips_files
+
+- name: Construire et démarrer la sonde
+  community.docker.docker_compose_v2:
+    project_src: "{{ ips_dir }}"
+    build: "{{ 'always' if ips_files.changed else 'policy' }}"
+    state: present
+    wait: true
+    wait_timeout: 120

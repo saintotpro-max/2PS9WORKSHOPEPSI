@@ -1,0 +1,77 @@
+groups:
+  - name: infrastructure
+    rules:
+      - alert: CibleInjoignable
+        expr: up == 0
+        for: 1m
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.job }} injoignable ({{ $labels.instance }})"
+
+      - alert: CpuSature
+        expr: 100 - avg by (host) (rate(node_cpu_seconds_total{mode="idle"}[1m])) * 100 > 90
+        for: 2m
+        labels: {severity: warning}
+        annotations:
+          summary: "CPU > 90 % sur {{ $labels.host }}"
+
+      - alert: SondeHttpEnEchec
+        expr: probe_success == 0
+        for: 10s
+        labels: {severity: critical}
+        annotations:
+          summary: "Sonde HTTP en échec : {{ $labels.instance }}"
+
+  - name: service-metier
+    rules:
+      # Preuve de reprise : une transaction de test complète échoue
+      - alert: TransactionsEnEchec
+        expr: min(txn_probe_success) == 0
+        for: 10s
+        labels: {severity: critical}
+        annotations:
+          summary: "Les transactions de test échouent"
+
+      - alert: ServiceApplicatifEnPanne
+        expr: probe_success{job="blackbox-services"} == 0
+        for: 10s
+        labels: {severity: critical}
+        annotations:
+          summary: "{{ $labels.service }} ne répond plus à /health"
+
+  - name: sauvegardes
+    rules:
+      - alert: SauvegardeBaseAncienne
+        expr: time() - pg_backup_last_success_timestamp_seconds > 7200
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "Dernière sauvegarde de la base > 2 h"
+
+      - alert: SauvegardeBaseAbsente
+        expr: absent(pg_backup_last_success_timestamp_seconds)
+        for: 3h
+        labels: {severity: warning}
+        annotations:
+          summary: "Aucune métrique de sauvegarde de la base"
+
+  - name: ips
+    rules:
+      # Seuls les flux au-dessus du seuil de décision comptent (pas les prédictions faibles)
+      - alert: IpsAttaqueDetectee
+        expr: sum by (attack_type) (increase(ips_suspect_flows_total[1m])) > 0
+        labels: {severity: critical}
+        annotations:
+          summary: "La sonde IPS détecte une attaque {{ $labels.attack_type }}"
+
+      - alert: IpsIpBloquee
+        expr: increase(ips_blocks_total{mode="enforced"}[1m]) > 0
+        labels: {severity: critical}
+        annotations:
+          summary: "La sonde IPS a bloqué une IP source"
+
+      - alert: IpsModeleInjoignable
+        expr: increase(ips_predict_errors_total[2m]) > 0
+        labels: {severity: critical}
+        annotations:
+          summary: "La sonde IPS n'arrive plus à interroger le modèle (/predict)"

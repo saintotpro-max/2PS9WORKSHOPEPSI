@@ -1,0 +1,72 @@
+---
+- name: Secrets de l'observabilité (déchiffrés par SOPS sur le nœud de contrôle)
+  community.sops.load_vars:
+    file: "{{ playbook_dir }}/../../secrets/{{ item }}.enc.yml"
+  loop: [observability, platform]
+  no_log: true
+
+- name: Arborescence de la pile
+  ansible.builtin.file:
+    path: "{{ obs_dir }}/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - prometheus/rules
+    - alertmanager
+    - grafana/provisioning/datasources
+    - grafana/provisioning/dashboards
+    - grafana/dashboards
+    - loki
+    - alloy
+    - blackbox
+
+- name: Configurations générées
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ obs_dir }}/{{ item.dest }}"
+    mode: "0644"
+  loop:
+    - {src: compose.yml.j2, dest: compose.yml}
+    - {src: prometheus.yml.j2, dest: prometheus/prometheus.yml}
+    - {src: config.alloy.j2, dest: alloy/config.alloy}
+    - {src: alertmanager.yml.j2, dest: alertmanager/alertmanager.yml}
+  notify: Redémarrer la pile obs
+
+- name: Configurations statiques
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ obs_dir }}/{{ item.dest }}"
+    mode: "0644"
+  loop:
+    - {src: alerts.yml, dest: prometheus/rules/alerts.yml}
+    - {src: loki.yml, dest: loki/loki.yml}
+    - {src: blackbox.yml, dest: blackbox/blackbox.yml}
+    - {src: grafana/datasources.yml, dest: grafana/provisioning/datasources/datasources.yml}
+    - {src: grafana/dashboards.yml, dest: grafana/provisioning/dashboards/dashboards.yml}
+    - {src: grafana/dashboards/, dest: grafana/dashboards/}
+  notify: Redémarrer la pile obs
+
+- name: Jeton du webhook de remédiation (lisible par Alertmanager uniquement)
+  ansible.builtin.copy:
+    content: "{{ remediation_token }}"
+    dest: "{{ obs_dir }}/alertmanager/remediation_token"
+    owner: root
+    group: "65534"
+    mode: "0640"
+  no_log: true
+  notify: Redémarrer la pile obs
+
+- name: Mot de passe Grafana (fichier .env réservé à root)
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ obs_dir }}/.env"
+    mode: "0600"
+  no_log: true
+
+- name: Démarrer la pile d'observabilité
+  community.docker.docker_compose_v2:
+    project_src: "{{ obs_dir }}"
+    state: present
+    pull: missing
+    wait: true
+    wait_timeout: 180

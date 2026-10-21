@@ -1,0 +1,21 @@
+#!/bin/sh
+# {{ ansible_managed }} — pilotage de la démo de vague (opérateur).
+#   ra-vague url      URL publique du QR (+ écrit un PNG)
+#   ra-vague etat     état du compteur
+#   ra-vague armer    lance le compte à rebours puis la vague
+#   ra-vague reset    remet le compteur à zéro
+P=http://127.0.0.1:{{ participation_port }}
+case "$1" in
+  url)
+    u=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' {{ attack_dir }}/cloudflared.log | tail -1)
+    [ -z "$u" ] && { echo "tunnel pas encore prêt (voir {{ attack_dir }}/cloudflared.log)"; exit 1; }
+    echo "URL publique : $u"
+    if command -v qrencode >/dev/null; then
+      qrencode -o {{ attack_dir }}/qr.png -s 10 "$u" && echo "QR -> {{ attack_dir }}/qr.png"
+      qrencode -t ANSIUTF8 "$u"
+    fi ;;
+  etat)   curl -s $P/participation/etat; echo ;;
+  armer)  curl -s -X POST $P/participation/armer; echo ;;
+  reset)  curl -s -X POST $P/participation/reset; echo ;;
+  *) echo "usage: ra-vague {url|etat|armer|reset}" ;;
+esac

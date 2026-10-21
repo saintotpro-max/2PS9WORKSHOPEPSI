@@ -1,0 +1,54 @@
+# Règles du moteur de remédiation.
+# Une alerte Prometheus (alertname + labels) déclenche une liste d'actions essayées
+# dans l'ordre ; après chaque action, la reprise est vérifiée dans Prometheus.
+
+settings:
+  # Reprise confirmée quand une transaction de test réussit (sonde txn-probe)…
+  verify_query: min(txn_probe_success)
+  # …ou, tant que la sonde n'existe pas, quand le point d'entrée répond.
+  verify_fallback_query: probe_success{instance="http://waf:8080/healthz"}
+  verify_timeout: 60        # s accordées au service pour revenir après une action
+  verify_interval: 3
+  cooldown: 60              # s minimum entre deux actions sur une même cible
+  max_attempts: 3
+  # Preuves de reprise (chacune doit valoir 1) : « redémarrer n'est pas réparer »
+  verify_checks:
+    point_entree: 'probe_success{instance="http://waf:8080/healthz"}'
+    service_paiement: 'probe_success{job="blackbox-services", service="paiement"}'
+    transaction_bout_en_bout: 'min(txn_probe_success)'
+
+# Seuls ces services Compose (projet "platform") peuvent être redémarrés.
+# La base de données est volontairement exclue : son redémarrage ne corrige pas
+# une saturation et risque d'aggraver l'incident.
+restartable: [paiement, waf, dashboard]
+
+rules:
+  # Les transactions de test échouent : la plateforme de paiement est la cible la plus
+  # probable, puis le point d'entrée par lequel passent les transactions.
+  - alert: TransactionsEnEchec
+    description: transactions fictives en échec
+    actions:
+      - {type: restart, target: paiement}
+      - {type: restart, target: waf}
+
+  # Un service applicatif ne répond plus à /health : on relance ce service.
+  - alert: ServiceApplicatifEnPanne
+    description: service applicatif injoignable
+    actions:
+      - {type: restart, target_label: service}
+
+  # Le point d'entrée ne répond plus.
+  - alert: SondeHttpEnEchec
+    match: {instance: "http://waf:8080/healthz"}
+    actions:
+      - {type: restart, target: waf}
+
+  # La sonde IPS a déjà bloqué l'attaquant : on trace l'incident ; la reprise
+  # du service est suivie par TransactionsEnEchec si elle est nécessaire.
+  - alert: IpsIpBloquee
+    description: attaquant bloqué par la sonde IPS
+    actions: [{type: record}]
+
+  - alert: IpsAttaqueDetectee
+    description: attaque détectée par le modèle ML
+    actions: [{type: record}]

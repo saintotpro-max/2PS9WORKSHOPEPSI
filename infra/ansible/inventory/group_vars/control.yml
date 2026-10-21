@@ -1,0 +1,3 @@
+---
+hostfw_tcp_allow:
+  - {port: 22, comment: "SSH d'administration (réseau NAT VMware et LAN)"}

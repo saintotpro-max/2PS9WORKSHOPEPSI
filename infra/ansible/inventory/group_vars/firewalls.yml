@@ -1,0 +1,12 @@
+---
+# Réseaux autorisés à joindre la plateforme par le WAN (redirection 443 -> WAF).
+# Seul le point d'entrée HTTPS est concerné : dashboard protégé par mot de passe,
+# interfaces d'administration (Grafana, pfSense, base) jamais exposées.
+#
+# OUVERT À TOUS (contexte école, pas de risque) : toute source WAN peut joindre
+# le WAF en 443. Pour re-restreindre, remplacer 0.0.0.0/0 par les réseaux voulus
+# (ex. ceux laissés en commentaire ci-dessous) puis rejouer 05-pfsense.yml.
+pfsense_allowed_clients:
+  - 0.0.0.0/0            # toute source (école — ouverture volontaire)
+  # - 10.60.64.0/22      # Wi-Fi de l'école (COMDEV-PEDAGO) — tests
+  # - 10.113.10.0/24     # Partage de connexion du groupe (démo)

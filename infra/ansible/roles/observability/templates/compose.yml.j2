@@ -1,0 +1,122 @@
+# {{ ansible_managed }}
+# Pile d'observabilité (ra-docker). Seuls Grafana et Loki sont publiés, et uniquement
+# sur l'IP LAN ; Prometheus et Alertmanager restent internes au réseau "obs".
+name: obs
+
+networks:
+  obs:
+    name: obs          # rejoint plus tard par la plateforme (réseau externe "obs")
+
+volumes:
+  prometheus-data:
+  alertmanager-data:
+  grafana-data:
+  loki-data:
+  alloy-data:
+
+services:
+  prometheus:
+    image: prom/prometheus:{{ obs_versions.prometheus }}
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time={{ obs_retention }}
+      - --web.enable-lifecycle
+    volumes:
+      - ./prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    networks: [obs]
+    restart: unless-stopped
+
+  alertmanager:
+    image: prom/alertmanager:{{ obs_versions.alertmanager }}
+    command: [--config.file=/etc/alertmanager/alertmanager.yml, --storage.path=/alertmanager]
+    volumes:
+      - ./alertmanager:/etc/alertmanager:ro
+      - alertmanager-data:/alertmanager
+    networks: [obs]
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:{{ obs_versions.grafana }}
+    env_file: .env       # mot de passe admin, issu de SOPS (fichier 0600)
+    environment:
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports: ["{{ docker_lan_ip }}:3000:3000"]
+    networks: [obs]
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:{{ obs_versions.loki }}
+    command: [-config.file=/etc/loki/loki.yml]
+    volumes:
+      - ./loki/loki.yml:/etc/loki/loki.yml:ro
+      - loki-data:/loki
+    ports: ["{{ docker_lan_ip }}:3100:3100"]     # réception des journaux de ra-ips
+    networks: [obs]
+    restart: unless-stopped
+
+  # Accès Docker filtré, lecture seule : liste/inspection des conteneurs et journaux.
+  # Aucune requête POST (création, arrêt, exec...) n'est possible.
+  socket-proxy:
+    image: tecnativa/docker-socket-proxy:{{ obs_versions.socket_proxy }}
+    environment:
+      CONTAINERS: "1"
+      EVENTS: "1"
+      NETWORKS: "1"     # requis par la découverte Alloy (labels réseau)
+      INFO: "1"
+      POST: "0"
+    volumes: [/var/run/docker.sock:/var/run/docker.sock:ro]
+    read_only: true
+    tmpfs: [/run, /tmp]   # haproxy y génère sa configuration
+    networks: [obs]
+    restart: unless-stopped
+
+  alloy:
+    image: grafana/alloy:{{ obs_versions.alloy }}
+    command: [run, --storage.path=/var/lib/alloy, --server.http.listen-addr=0.0.0.0:12345, /etc/alloy/config.alloy]
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - alloy-data:/var/lib/alloy
+      - /var/log/journal:/var/log/journal:ro
+      - /run/log/journal:/run/log/journal:ro
+      - /etc/machine-id:/etc/machine-id:ro
+    depends_on: [socket-proxy]
+    networks: [obs]
+    restart: unless-stopped
+
+  node-exporter:
+    image: prom/node-exporter:{{ obs_versions.node_exporter }}
+    command: [--path.rootfs=/host, "--web.listen-address={{ docker_lan_ip }}:9100", --collector.textfile.directory=/host/var/lib/node_exporter/textfile]
+    network_mode: host
+    pid: host
+    volumes: ["/:/host:ro,rslave"]
+    restart: unless-stopped
+
+  cadvisor:
+    image: ghcr.io/google/cadvisor:{{ obs_versions.cadvisor }}
+    command: [--docker_only=true, --housekeeping_interval=10s, "--disable_metrics=percpu,sched,tcp,udp,disk,diskIO,hugetlb,referenced_memory"]
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices: [/dev/kmsg]
+    networks: [obs]
+    restart: unless-stopped
+
+  blackbox-exporter:
+    image: prom/blackbox-exporter:{{ obs_versions.blackbox_exporter }}
+    command: [--config.file=/etc/blackbox/blackbox.yml]
+    volumes: [./blackbox:/etc/blackbox:ro]
+    networks: [obs]
+    restart: unless-stopped

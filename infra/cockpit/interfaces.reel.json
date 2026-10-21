@@ -1,0 +1,21 @@
+{
+  "_commentaire": "Config du cockpit Ren'Py pour la démo RESILIENCE-ALPHA (Option 1).",
+  "_a_adapter": [
+    "plateforme.url : IP WAN actuelle de pfSense (change selon le Wi-Fi)",
+    "attaque.dossier : chemin ABSOLU de cockpit/attaque-reelle (ce dépôt)"
+  ],
+  "demo": false,
+  "role": "tous",
+
+  "plateforme": { "mode": "reel", "url": "https://10.60.64.36" },
+
+  "attaque": {
+    "mode": "reel",
+    "dossier": "/chemin/absolu/vers/resilience-infra/cockpit/attaque-reelle",
+    "python": "python3"
+  },
+
+  "moteur":    { "mode": "simule", "url": "http://127.0.0.1:8765" },
+  "detection": { "mode": "simule", "url": "http://127.0.0.1:8765" },
+  "assistant": { "mode": "simule", "url": "http://127.0.0.1:8765" }
+}
